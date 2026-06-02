@@ -1,3 +1,4 @@
+import google.generativeai as genai
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -320,3 +321,60 @@ elif menu == "🧮 Kalkulator Finansial":
                 st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
                 st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
                 st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
+
+
+# ==========================================
+# MENU 5: ASISTEN AI (GEMINI AI)
+# ==========================================
+elif menu == "💬 Asisten AI":
+    st.title("💬 Asisten Keuangan AI (Gemini)")
+    st.markdown("Saya ditenagai oleh kecerdasan buatan sungguhan. Tanyakan apa saja!")
+
+    # 1. Konfigurasi API Key secara aman dari Streamlit Secrets
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        genai.configure(api_key=api_key)
+        # Menggunakan model Gemini 1.5 Flash yang cepat
+        model_ai = genai.GenerativeModel('gemini-1.5-flash') 
+    except KeyError:
+        st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets! Silakan atur terlebih dahulu.")
+        st.stop()
+
+    # 2. Inisialisasi memori chat agar obrolan bersambung
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Halo! Saya asisten AI cerdas Anda. Ada yang bisa saya bantu terkait analisis keuangan hari ini?"}
+        ]
+
+    # 3. Menampilkan riwayat obrolan di layar
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # 4. Kotak Input & Proses Memanggil Gemini
+    if prompt = st.chat_input("Ketik pertanyaan Anda di sini..."):
+        # Tampilkan pertanyaan Anda
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Panggil API Gemini dan tampilkan balasan
+        with st.chat_message("assistant"):
+            with st.spinner("Sedang memproses data..."):
+                try:
+                    # Menambahkan prompt sistem agar AI tahu perannya
+                    konteks = "Anda adalah asisten keuangan pribadi. Jawablah dengan ramah, profesional, dan berikan tips keuangan yang logis atau wawasan statistik jika relevan."
+                    
+                    full_prompt = f"{konteks}\n\nPertanyaan pengguna: {prompt}"
+                    
+                    # Meminta jawaban ke server Google
+                    response = model_ai.generate_content(full_prompt)
+                    balasan = response.text
+                    
+                    # Menampilkan jawaban
+                    st.markdown(balasan)
+                    
+                    # Menyimpan jawaban ke memori
+                    st.session_state.messages.append({"role": "assistant", "content": balasan})
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan koneksi ke AI: {e}")
