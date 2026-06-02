@@ -352,7 +352,7 @@ elif menu == "💬 Asisten AI":
             st.markdown(message["content"])
 
     # 4. Kotak Input & Proses Memanggil Gemini
-    if prompt = st.chat_input("Ketik pertanyaan Anda di sini..."):
+    if prompt := st.chat_input("Ketik pertanyaan Anda di sini..."):
         # Tampilkan pertanyaan Anda
         with st.chat_message("user"):
             st.markdown(prompt)
