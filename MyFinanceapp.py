@@ -116,7 +116,7 @@ if menu == "🏠 Beranda & Input":
     # Form Input di Bawahnya
     col_form, col_tabel = st.columns([1, 1.2])
     
-        with col_form:
+    with col_form:
         st.subheader("📝 Catat Transaksi")
         
         # Form dihilangkan agar dropdown Kategori bisa berubah otomatis secara real-time
