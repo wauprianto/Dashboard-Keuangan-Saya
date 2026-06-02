@@ -92,18 +92,23 @@ if menu == "🏠 Beranda & Input":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     st.info(f"💡 **Quote Hari Ini:** *{random.choice(kumpulan_motivasi)}*")
     
-    # Tampilan Metrik Harian di atas
+    # Tampilan Metrik
     hari_ini = pd.to_datetime(datetime.today().date())
     df_harian = df[df['Tanggal'] == hari_ini]
     
+    # 1. Pemasukan dan Pengeluaran HARI INI
     pemasukan_harian = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     pengeluaran_harian = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    saldo_harian = pemasukan_harian - pengeluaran_harian
+    
+    # 2. Saldo Akhir KESELURUHAN (Akumulasi seluruh waktu)
+    total_pemasukan_semua = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+    total_pengeluaran_semua = df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+    saldo_akhir = total_pemasukan_semua - total_pengeluaran_semua
     
     col1, col2, col3 = st.columns(3)
     col1.metric("🟢 Pemasukan Hari Ini", f"Rp {pemasukan_harian:,.0f}")
     col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {pengeluaran_harian:,.0f}")
-    col3.metric("💎 Net Saldo", f"Rp {saldo_harian:,.0f}")
+    col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
     
@@ -166,7 +171,7 @@ elif menu == "📈 Analisis Bulanan":
         
         col_c1, col_c2 = st.columns(2)
         
-        # Grafik 1: Bar Chart (Lebih modern dari line chart untuk agregasi harian)
+        # Grafik 1: Bar Chart
         with col_c1:
             st.subheader("Arus Kas Harian")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
@@ -176,7 +181,7 @@ elif menu == "📈 Analisis Bulanan":
             fig_bar.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_bar, use_container_width=True)
             
-        # Grafik 2: Donut Chart dengan desain sleek
+        # Grafik 2: Donut Chart
         with col_c2:
             st.subheader("Distribusi Pengeluaran")
             df_pengeluaran = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']
@@ -216,7 +221,7 @@ elif menu == "🔮 AI Prediksi":
             df_forecast['Prediksi'] = df_forecast['Prediksi'].apply(lambda x: max(0, x))
             
             fig_forecast = go.Figure()
-            hist_plot = df_ts.tail(21) # Ambil 3 minggu terakhir
+            hist_plot = df_ts.tail(21)
             
             fig_forecast.add_trace(go.Scatter(
                 x=hist_plot.index, y=hist_plot['Jumlah'], 
