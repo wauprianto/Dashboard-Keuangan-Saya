@@ -15,6 +15,33 @@ warnings.filterwarnings('ignore')
 # Menggunakan layout wide dan sidebar terbuka dari awal
 st.set_page_config(page_title="Smart Finance", page_icon="💠", layout="wide", initial_sidebar_state="expanded")
 
+# --- FITUR KEAMANAN (LOGIN) ---
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+if not st.session_state['logged_in']:
+    # Membuat tampilan login di tengah layar
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        st.markdown("<br><br><h2 style='text-align: center; color: #00ffcc;'>🔒 Akses Dasbor Keuangan</h2>", unsafe_allow_html=True)
+        with st.container(border=True):
+            password_input = st.text_input("Masukkan PIN / Password:", type="password")
+            if st.button("Masuk", use_container_width=True):
+                # ⬇️ UBAH KATA SANDI DI BAWAH INI SESUAI KEINGINAN ANDA ⬇️
+                if password_input == "220303": 
+                    st.session_state['logged_in'] = True
+                    st.rerun()
+                else:
+                    st.error("❌ Password salah!")
+    # st.stop() akan menghentikan eksekusi kode di bawahnya, sehingga dasbor tidak akan dimuat
+    st.stop() 
+
+# --- TOMBOL LOGOUT DI SIDEBAR ---
+# Kode ini akan memunculkan tombol logout jika Anda sudah berhasil masuk
+if st.sidebar.button("🚪 Keluar (Logout)"):
+    st.session_state['logged_in'] = False
+    st.rerun()
+
 # --- CUSTOM CSS UNTUK TAMPILAN ELEGAN ---
 st.markdown("""
 <style>
