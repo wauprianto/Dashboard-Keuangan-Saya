@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
@@ -8,7 +9,6 @@ import random
 from statsmodels.tsa.arima.model import ARIMA
 import warnings
 
-# Mengabaikan warning konvergensi
 warnings.filterwarnings('ignore')
 
 # --- KONFIGURASI HALAMAN ---
@@ -32,12 +32,11 @@ if not st.session_state['logged_in']:
                     st.error("❌ Password salah!")
     st.stop() 
 
-# --- TOMBOL LOGOUT DI SIDEBAR ---
 if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
-# --- CUSTOM CSS UNTUK TAMPILAN ELEGAN ---
+# --- CUSTOM CSS ---
 st.markdown("""
 <style>
     div[data-testid="metric-container"] {
@@ -98,8 +97,7 @@ st.sidebar.caption("Prianto Sanema Wau")
 kumpulan_motivasi = [
     "Membangun stabilitas finansial itu seperti melatih algoritma machine learning; butuh kesabaran, input data yang konsisten, dan evaluasi berkelanjutan.",
     "Perjalanan panjang berdiri di kereta setiap hari mungkin melelahkan, tapi jadikan itu saksi bisu perjuanganmu membangun masa depan yang solid.",
-    "Angka tidak pernah berbohong. Disiplin mencatat statistik hari ini adalah kunci untuk memprediksi kebebasan finansial di masa depan.",
-    "Bermain game atau menonton anime favorit sesekali adalah reward terbaik setelah kamu berhasil mengatur arus kas dengan cerdas minggu ini."
+    "Angka tidak pernah berbohong. Disiplin mencatat statistik hari ini adalah kunci untuk memprediksi kebebasan finansial di masa depan."
 ]
 
 # ==========================================
@@ -109,7 +107,37 @@ if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     st.info(f"💡 **Quote Hari Ini:** *{random.choice(kumpulan_motivasi)}*")
     
-    # Tombol Popover Melayang untuk Kalkulator Finansial
+    # 1. KOMPUTASI METRIK
+    hari_ini = pd.to_datetime(datetime.today().date())
+    df_harian = df[df['Tanggal'] == hari_ini]
+    
+    pemasukan_harian = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+    pengeluaran_harian = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+    
+    total_pemasukan_semua = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+    total_pengeluaran_semua = df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+    saldo_akhir = total_pemasukan_semua - total_pengeluaran_semua
+    
+    # 2. SISTEM DETEKSI ANOMALI (Z-SCORE)
+    df_pengeluaran_all = df[df['Tipe'] == 'Pengeluaran']
+    if not df_pengeluaran_all.empty:
+        pengeluaran_hist = df_pengeluaran_all.groupby(df_pengeluaran_all['Tanggal'].dt.date)['Jumlah'].sum()
+        if len(pengeluaran_hist) > 2:
+            mean_pengeluaran = pengeluaran_hist.mean()
+            std_pengeluaran = pengeluaran_hist.std()
+            if std_pengeluaran > 0:
+                z_score = (pengeluaran_harian - mean_pengeluaran) / std_pengeluaran
+                if z_score > 2: # Threshold Anomali
+                    st.error(f"⚠️ **Peringatan Anomali Statistik:** Pengeluaran hari ini (Z-Score: {z_score:.2f}) melonjak jauh di atas rata-rata kebiasaan harian Anda (Rp {mean_pengeluaran:,.0f}).")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🟢 Pemasukan Hari Ini", f"Rp {pemasukan_harian:,.0f}")
+    col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {pengeluaran_harian:,.0f}")
+    col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
+    
+    st.markdown("---")
+    
+    # 3. POP-UP KALKULATOR DENGAN PROGRESS BAR
     with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
         st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
         col_target, col_budget = st.columns(2)
@@ -119,10 +147,15 @@ if menu == "🏠 Dashboard":
             with st.container(border=True):
                 nama_target = st.text_input("Nama Target", "Laptop Baru / Liburan")
                 nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
-                jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
+                
+                # Fitur Progress Bar
                 if nominal_target > 0:
-                    per_bulan = nominal_target / jangka_waktu
-                    st.success(f"Anda perlu menyisihkan **Rp {per_bulan:,.0f} / bulan**.")
+                    persentase = min(saldo_akhir / nominal_target, 1.0)
+                    if saldo_akhir >= nominal_target:
+                        st.success(f"🎉 Selamat! Target **{nama_target}** sudah tercapai!")
+                    else:
+                        st.progress(persentase)
+                        st.caption(f"Terkumpul: **Rp {saldo_akhir:,.0f}** dari Rp {nominal_target:,.0f} ({persentase*100:.1f}%)")
                     
         with col_budget:
             st.subheader("📊 Anggaran 50/30/20")
@@ -137,24 +170,6 @@ if menu == "🏠 Dashboard":
                     st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Komputasi Metrik Ringkasan
-    hari_ini = pd.to_datetime(datetime.today().date())
-    df_harian = df[df['Tanggal'] == hari_ini]
-    
-    pemasukan_harian = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-    pengeluaran_harian = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    
-    total_pemasukan_semua = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-    total_pengeluaran_semua = df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    saldo_akhir = total_pemasukan_semua - total_pengeluaran_semua
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🟢 Pemasukan Hari Ini", f"Rp {pemasukan_harian:,.0f}")
-    col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {pengeluaran_harian:,.0f}")
-    col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
-    
-    st.markdown("---")
     
     col_form, col_tabel = st.columns([1, 1.2])
     
@@ -172,16 +187,9 @@ if menu == "🏠 Dashboard":
         keterangan = st.text_input("Keterangan (Opsional)")
         
         submit = st.button("💾 Simpan Data", use_container_width=True)
-        
         if submit:
             if jumlah > 0:
-                data_baru = pd.DataFrame({
-                    'Tanggal': [pd.to_datetime(tanggal)],
-                    'Tipe': [tipe],
-                    'Kategori': [kategori],
-                    'Jumlah': [jumlah],
-                    'Keterangan': [keterangan]
-                })
+                data_baru = pd.DataFrame({'Tanggal': [pd.to_datetime(tanggal)],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
                 df = pd.concat([df, data_baru], ignore_index=True)
                 save_data(df)
                 st.success("✅ Tersimpan!")
@@ -189,24 +197,28 @@ if menu == "🏠 Dashboard":
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
 
+    # 4. TABEL DENGAN FILTER DINAMIS
     with col_tabel:
         st.subheader("📋 Riwayat Transaksi")
         if not df.empty:
-            df_tampil = df.sort_values(by='Tanggal', ascending=False)
+            pilihan_tipe = st.multiselect("Filter Jenis:", options=["Pemasukan", "Pengeluaran"], default=["Pemasukan", "Pengeluaran"])
+            
+            df_tampil = df[df['Tipe'].isin(pilihan_tipe)].sort_values(by='Tanggal', ascending=False)
+            
             st.dataframe(
                 df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style.format({
                     "Tanggal": lambda x: x.strftime("%Y-%m-%d"), 
                     "Jumlah": "Rp {:,.0f}"
                 }), 
                 use_container_width=True, 
-                height=280,
+                height=230,
                 hide_index=True
             )
         else:
-            st.markdown("<br><br><div style='text-align: center; color: gray;'>Belum ada riwayat transaksi.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: center; color: gray;'>Belum ada riwayat transaksi.</div>", unsafe_allow_html=True)
 
 # ==========================================
-# MENU 2: ANALISIS BULANAN (MENGGUNAKAN PLOTLY)
+# MENU 2: ANALISIS BULANAN 
 # ==========================================
 elif menu == "📈 Analyze":
     st.title("Visualisasi & Analisis Bulanan")
@@ -217,12 +229,26 @@ elif menu == "📈 Analyze":
         df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
         list_bulan_str = [str(b) for b in sorted(df['Bulan_Tahun'].unique(), reverse=True)]
         
-        bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str)
+        col_opt1, col_opt2 = st.columns([1, 3])
+        with col_opt1:
+            bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str)
+        
         df_bulanan = df[df['Bulan_Tahun'] == bulan_pilihan]
         
-        col_c1, col_c2 = st.columns(2)
+        # 5. FITUR EXPORT / DOWNLOAD LAPORAN
+        with col_opt2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            csv = df_bulanan.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Laporan (CSV)",
+                data=csv,
+                file_name=f"Laporan_Keuangan_{bulan_pilihan}.csv",
+                mime="text/csv",
+            )
+            
+        st.markdown("---")
         
-        # Grafik 1: Bar Chart Interaktif Plotly
+        col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.subheader("Arus Kas Harian")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
@@ -232,7 +258,6 @@ elif menu == "📈 Analyze":
             fig_bar.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_bar, use_container_width=True)
             
-        # Grafik 2: Donut Chart Interaktif Plotly
         with col_c2:
             st.subheader("Distribusi Pengeluaran")
             df_pengeluaran = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']
@@ -240,56 +265,59 @@ elif menu == "📈 Analyze":
                 fig_pie = px.pie(df_pengeluaran, values='Jumlah', names='Kategori', hole=0.5, template="plotly_dark",
                                  color_discrete_sequence=px.colors.sequential.Tealgrn)
                 fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-                fig_pie.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                fig_pie.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=0, b=0, l=0, r=0))
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
                 st.info("Tidak ada pengeluaran di bulan ini.")
 
 # ==========================================
-# MENU 3: AI PREDIKSI (ARIMA - MENGGUNAKAN PLOTLY)
+# MENU 3: AI PREDIKSI (ARIMA ADVANCED)
 # ==========================================
 elif menu == "🔮 AI Predict":
-    st.title("Proyeksi Tren Pengeluaran")
-    st.markdown("Mesin analitik ini menggunakan algoritma **ARIMA** untuk mempelajari pola pengeluaran historis Anda.")
+    st.title("Proyeksi Pengeluaran (ARIMA with Confidence Interval)")
+    st.markdown("Model ini menggunakan algoritma **ARIMA (Autoregressive Integrated Moving Average)** dengan pemetaan *Upper* dan *Lower Bounds* 95% untuk menganalisis batas toleransi volatilitas pengeluaran Anda ke depan.")
     
     df_pengeluaran_all = df[df['Tipe'] == 'Pengeluaran'].copy()
     
     if len(df_pengeluaran_all['Tanggal'].unique()) < 7:
-        st.warning("⚠️ Masukkan data pengeluaran minimal 7 hari agar AI dapat membaca pola dengan akurat.")
+        st.warning("⚠️ Masukkan data pengeluaran minimal 7 hari (beda tanggal) agar AI dapat membaca pola dengan akurat.")
     else:
         df_ts = df_pengeluaran_all.groupby('Tanggal')['Jumlah'].sum().reset_index()
         df_ts = df_ts.set_index('Tanggal').asfreq('D', fill_value=0)
         
         try:
+            # Fit Model ARIMA
             model = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
             model_fit = model.fit()
             
             langkah_prediksi = st.slider("Horizon Prediksi (Hari ke depan):", 3, 30, 7)
-            forecast = model_fit.forecast(steps=langkah_prediksi)
+            
+            # Forecast dengan Confidence Interval (Interval Kepercayaan)
+            prediksi_obj = model_fit.get_forecast(steps=langkah_prediksi)
+            forecast_mean = prediksi_obj.predicted_mean.apply(lambda x: max(0, x))
+            conf_int = prediksi_obj.conf_int()
+            lower_bound = conf_int.iloc[:, 0].apply(lambda x: max(0, x))
+            upper_bound = conf_int.iloc[:, 1].apply(lambda x: max(0, x))
             
             tanggal_forecast = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
-            df_forecast = pd.DataFrame({'Tanggal': tanggal_forecast, 'Prediksi': forecast.values})
-            df_forecast['Prediksi'] = df_forecast['Prediksi'].apply(lambda x: max(0, x))
             
-            # Grafik Tren Proyeksi menggunakan Plotly Graph Objects
+            # Visualisasi Plotly Advanced
             fig_forecast = go.Figure()
             hist_plot = df_ts.tail(21)
             
-            fig_forecast.add_trace(go.Scatter(
-                x=hist_plot.index, y=hist_plot['Jumlah'], 
-                mode='lines+markers', name='Data Historis', line=dict(color='#89b4fa', width=3)
-            ))
-            fig_forecast.add_trace(go.Scatter(
-                x=df_forecast['Tanggal'], y=df_forecast['Prediksi'], 
-                mode='lines+markers', name='Proyeksi AI', line=dict(color='#ff4d4d', dash='dot', width=3)
-            ))
+            # Area Historis
+            fig_forecast.add_trace(go.Scatter(x=hist_plot.index, y=hist_plot['Jumlah'], mode='lines+markers', name='Data Aktual', line=dict(color='#89b4fa', width=3)))
+            
+            # Upper Bound (Batas Atas)
+            fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=upper_bound, mode='lines', line=dict(width=0), showlegend=False))
+            # Lower Bound (Batas Bawah) dengan fill
+            fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=lower_bound, mode='lines', fill='tonexty', fillcolor='rgba(243, 139, 168, 0.2)', line=dict(width=0), name='95% Confidence Interval'))
+            # Garis Prediksi Tengah
+            fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=forecast_mean, mode='lines+markers', name='Proyeksi Rata-rata', line=dict(color='#f38ba8', dash='dot', width=3)))
             
             fig_forecast.update_layout(
-                template="plotly_dark",
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
             st.plotly_chart(fig_forecast, use_container_width=True)
             
