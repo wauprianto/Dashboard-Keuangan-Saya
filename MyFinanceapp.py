@@ -201,7 +201,7 @@ elif menu == "📈 Analisis Bulanan":
             if not df_pengeluaran.empty:
                 fig_pie = px.pie(df_pengeluaran, values='Jumlah', names='Kategori', hole=0.5, template="plotly_dark",
                                  color_discrete_sequence=px.colors.sequential.Tealgrn)
-                fig_pie.update_traces(textposition='inside', textinfo='percent')
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label')
                 fig_pie.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
