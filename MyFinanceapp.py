@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Smart Finance", page_icon="💠", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Smart Finance", page_icon="💰", layout="wide", initial_sidebar_state="expanded")
 
 # --- FITUR KEAMANAN (LOGIN) ---
 if 'logged_in' not in st.session_state:
@@ -33,7 +33,7 @@ if not st.session_state['logged_in']:
     st.stop() 
 
 # --- TOMBOL LOGOUT DI SIDEBAR ---
-if st.sidebar.button("🚪 Keluar (Logout)"):
+if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
@@ -89,7 +89,7 @@ st.sidebar.markdown("<h2 style='text-align: center; color: #00ffcc !important;'>
 st.sidebar.markdown("---")
 menu = st.sidebar.radio(
     "Navigasi Dashboard:",
-    ["🏠 Beranda & Input", "📈 Analisis Bulanan", "🔮 AI Prediksi", "🧮 Kalkulator Finansial"]
+    ["🏠 Dashboard", "📈 Analyze", "🔮 AI Predict"]
 )
 st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 | Financial Dashboard & Analytics")
@@ -105,10 +105,40 @@ kumpulan_motivasi = [
 # ==========================================
 # MENU 1: BERANDA & INPUT
 # ==========================================
-if menu == "🏠 Beranda & Input":
+if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     st.info(f"💡 **Quote Hari Ini:** *{random.choice(kumpulan_motivasi)}*")
     
+    # Tombol Popover Melayang untuk Kalkulator Finansial
+    with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
+        st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
+        col_target, col_budget = st.columns(2)
+        
+        with col_target:
+            st.subheader("🎯 Kalkulator Target")
+            with st.container(border=True):
+                nama_target = st.text_input("Nama Target", "Laptop Baru / Liburan")
+                nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
+                jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
+                if nominal_target > 0:
+                    per_bulan = nominal_target / jangka_waktu
+                    st.success(f"Anda perlu menyisihkan **Rp {per_bulan:,.0f} / bulan**.")
+                    
+        with col_budget:
+            st.subheader("📊 Anggaran 50/30/20")
+            with st.container(border=True):
+                gaji = st.number_input("Estimasi Pendapatan Bulan Ini (Rp)", min_value=0, value=5000000, step=100000)
+                if gaji > 0:
+                    kebutuhan = gaji * 0.50
+                    keinginan = gaji * 0.30
+                    tabungan = gaji * 0.20
+                    st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
+                    st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
+                    st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Komputasi Metrik Ringkasan
     hari_ini = pd.to_datetime(datetime.today().date())
     df_harian = df[df['Tanggal'] == hari_ini]
     
@@ -176,9 +206,9 @@ if menu == "🏠 Beranda & Input":
             st.markdown("<br><br><div style='text-align: center; color: gray;'>Belum ada riwayat transaksi.</div>", unsafe_allow_html=True)
 
 # ==========================================
-# MENU 2: ANALISIS BULANAN
+# MENU 2: ANALISIS BULANAN (MENGGUNAKAN PLOTLY)
 # ==========================================
-elif menu == "📈 Analisis Bulanan":
+elif menu == "📈 Analyze":
     st.title("Visualisasi & Analisis Bulanan")
     
     if df.empty:
@@ -192,6 +222,7 @@ elif menu == "📈 Analisis Bulanan":
         
         col_c1, col_c2 = st.columns(2)
         
+        # Grafik 1: Bar Chart Interaktif Plotly
         with col_c1:
             st.subheader("Arus Kas Harian")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
@@ -201,6 +232,7 @@ elif menu == "📈 Analisis Bulanan":
             fig_bar.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_bar, use_container_width=True)
             
+        # Grafik 2: Donut Chart Interaktif Plotly
         with col_c2:
             st.subheader("Distribusi Pengeluaran")
             df_pengeluaran = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']
@@ -214,9 +246,9 @@ elif menu == "📈 Analisis Bulanan":
                 st.info("Tidak ada pengeluaran di bulan ini.")
 
 # ==========================================
-# MENU 3: AI PREDIKSI (ARIMA)
+# MENU 3: AI PREDIKSI (ARIMA - MENGGUNAKAN PLOTLY)
 # ==========================================
-elif menu == "🔮 AI Prediksi":
+elif menu == "🔮 AI Predict":
     st.title("Proyeksi Tren Pengeluaran")
     st.markdown("Mesin analitik ini menggunakan algoritma **ARIMA** untuk mempelajari pola pengeluaran historis Anda.")
     
@@ -239,6 +271,7 @@ elif menu == "🔮 AI Prediksi":
             df_forecast = pd.DataFrame({'Tanggal': tanggal_forecast, 'Prediksi': forecast.values})
             df_forecast['Prediksi'] = df_forecast['Prediksi'].apply(lambda x: max(0, x))
             
+            # Grafik Tren Proyeksi menggunakan Plotly Graph Objects
             fig_forecast = go.Figure()
             hist_plot = df_ts.tail(21)
             
@@ -248,7 +281,7 @@ elif menu == "🔮 AI Prediksi":
             ))
             fig_forecast.add_trace(go.Scatter(
                 x=df_forecast['Tanggal'], y=df_forecast['Prediksi'], 
-                mode='lines+markers', name='Proyeksi AI', line=dict(color='#f38ba8', dash='dot', width=3)
+                mode='lines+markers', name='Proyeksi AI', line=dict(color='#ff4d4d', dash='dot', width=3)
             ))
             
             fig_forecast.update_layout(
@@ -262,36 +295,3 @@ elif menu == "🔮 AI Prediksi":
             
         except Exception as e:
             st.error(f"Gagal melakukan kalkulasi AI: {e}")
-
-# ==========================================
-# MENU 4: KALKULATOR FINANSIAL
-# ==========================================
-elif menu == "🧮 Kalkulator Finansial":
-    st.title("Simulasi Anggaran & Tabungan")
-    
-    col_target, col_budget = st.columns(2)
-    
-    with col_target:
-        st.subheader("🎯 Kalkulator Target")
-        with st.container(border=True):
-            nama_target = st.text_input("Nama Target", "Laptop Baru / Liburan")
-            nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
-            jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
-            
-            if nominal_target > 0:
-                per_bulan = nominal_target / jangka_waktu
-                st.success(f"Anda perlu menyisihkan **Rp {per_bulan:,.0f} / bulan**.")
-                
-    with col_budget:
-        st.subheader("📊 Anggaran 50/30/20")
-        with st.container(border=True):
-            gaji = st.number_input("Estimasi Pendapatan Bulan Ini (Rp)", min_value=0, value=5000000, step=100000)
-            
-            if gaji > 0:
-                kebutuhan = gaji * 0.50
-                keinginan = gaji * 0.30
-                tabungan = gaji * 0.20
-                
-                st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
-                st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
-                st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
