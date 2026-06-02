@@ -118,9 +118,9 @@ if menu == "🏠 Dashboard":
     total_pengeluaran_semua = df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     saldo_akhir = total_pemasukan_semua - total_pengeluaran_semua
     
-    # 2. SISTEM DETEKSI ANOMALI (Z-SCORE)
+    # 2. SISTEM DETEKSI ANOMALI (Z-SCORE) - DIREVISI
     df_pengeluaran_all = df[df['Tipe'] == 'Pengeluaran']
-    if not df_pengeluaran_all.empty:
+    if not df_pengeluaran_all.empty and pengeluaran_harian > 0: # Hanya memicu jika ada pengeluaran hari ini
         pengeluaran_hist = df_pengeluaran_all.groupby(df_pengeluaran_all['Tanggal'].dt.date)['Jumlah'].sum()
         if len(pengeluaran_hist) > 2:
             mean_pengeluaran = pengeluaran_hist.mean()
@@ -136,7 +136,8 @@ if menu == "🏠 Dashboard":
     col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
-    # 3. POP-UP KALKULATOR DENGAN PROGRESS BAR
+    
+    # 3. POP-UP KALKULATOR - DIREVISI (TANPA TOMBOL BUTTON AGAR HASIL TIDAK HILANG)
     with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
         st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
         col_target, col_budget = st.columns(2)
@@ -148,36 +149,35 @@ if menu == "🏠 Dashboard":
                 nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
                 jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
                 
-                # Tambahan Tombol Hitung Target
-                if st.button("Hitung Target", use_container_width=True):
-                    if nominal_target > 0:
-                        per_bulan = nominal_target / jangka_waktu
-                        st.success(f"Anda perlu menyisihkan **Rp {per_bulan:,.0f} / bulan**.")
-                        
-                        # Fitur Progress Bar yang terhubung dengan Saldo Akhir
-                        persentase = min(saldo_akhir / nominal_target, 1.0)
-                        if saldo_akhir >= nominal_target:
-                            st.info(f"🎉 Selamat! Saldo saat ini sudah cukup untuk **{nama_target}**!")
-                        else:
-                            st.progress(persentase)
-                            st.caption(f"Terkumpul saat ini: **Rp {saldo_akhir:,.0f}** dari Rp {nominal_target:,.0f} ({persentase*100:.1f}%)")
+                if nominal_target > 0:
+                    per_bulan = nominal_target / jangka_waktu
+                    st.markdown("---")
+                    st.success(f"Anda perlu menyisihkan **Rp {per_bulan:,.0f} / bulan**.")
+                    
+                    persentase = min(saldo_akhir / nominal_target, 1.0)
+                    if saldo_akhir >= nominal_target:
+                        st.info(f"🎉 Selamat! Saldo saat ini sudah cukup untuk **{nama_target}**!")
+                    else:
+                        # Menangani error jika progress bar nilainya negatif
+                        progress_val = max(0.0, persentase) 
+                        st.progress(progress_val)
+                        st.caption(f"Terkumpul saat ini: **Rp {saldo_akhir:,.0f}** dari Rp {nominal_target:,.0f} ({progress_val*100:.1f}%)")
                     
         with col_budget:
             st.subheader("📊 Anggaran 50/30/20")
             with st.container(border=True):
                 gaji = st.number_input("Estimasi Pendapatan Bulan Ini (Rp)", min_value=0, value=5000000, step=100000)
                 
-                # Tambahan Tombol Hitung Anggaran
-                if st.button("Hitung Anggaran", use_container_width=True):
-                    if gaji > 0:
-                        kebutuhan = gaji * 0.50
-                        keinginan = gaji * 0.30
-                        tabungan = gaji * 0.20
-                        
-                        st.success("✅ Rincian alokasi ideal Anda:")
-                        st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
-                        st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
-                        st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
+                if gaji > 0:
+                    kebutuhan = gaji * 0.50
+                    keinginan = gaji * 0.30
+                    tabungan = gaji * 0.20
+                    
+                    st.markdown("---")
+                    st.success("✅ Rincian alokasi ideal Anda:")
+                    st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
+                    st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
+                    st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
 
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -208,7 +208,7 @@ if menu == "🏠 Dashboard":
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
 
-    # 4. TABEL DENGAN FILTER DINAMIS
+    # 4. TABEL DENGAN FILTER DINAMIS - DIREVISI (Fungsi Pewarnaan Teks)
     with col_tabel:
         st.subheader("📋 Riwayat Transaksi")
         if not df.empty:
@@ -216,8 +216,17 @@ if menu == "🏠 Dashboard":
             
             df_tampil = df[df['Tipe'].isin(pilihan_tipe)].sort_values(by='Tanggal', ascending=False)
             
+            # Fungsi mewarnai kolom jumlah berdasarkan tipe
+            def color_jumlah(row):
+                if row['Tipe'] == 'Pemasukan':
+                    return ['color: #00ffcc'] * len(row)
+                else:
+                    return ['color: #ff4d4d'] * len(row)
+
             st.dataframe(
-                df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style.format({
+                df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style
+                .apply(color_jumlah, axis=1)
+                .format({
                     "Tanggal": lambda x: x.strftime("%Y-%m-%d"), 
                     "Jumlah": "Rp {:,.0f}"
                 }), 
