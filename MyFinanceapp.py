@@ -36,8 +36,6 @@ if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
-st.rerun()
-
 # -- CUSTOM CSS ---
 st.markdown("""
 <style>
