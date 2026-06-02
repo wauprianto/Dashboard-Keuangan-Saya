@@ -199,19 +199,9 @@ if menu == "🏠 Dashboard":
     with col_form:
         st.subheader("📝 Catat Transaksi")
         
-        # 1. Buat variabel penampung sementara di session_state jika belum ada
-        if 'reset_trigger' not in st.session_state:
-            st.session_state['reset_trigger'] = False
-
-        # 2. Tentukan nilai default secara dinamis berdasarkan trigger reset
-        if st.session_state['reset_trigger']:
-            default_jumlah = 0
-            default_ket = ""
-            # Matikan kembali triggernya setelah nilai dibersihkan
-            st.session_state['reset_trigger'] = False 
-        else:
-            default_jumlah = 0
-            default_ket = ""
+        # 1. Trik Pamungkas: Buat counter untuk mereset identitas widget
+        if 'form_key' not in st.session_state:
+            st.session_state.form_key = 0
             
         tanggal = st.date_input("Tanggal Transaksi", datetime.today())
         tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
@@ -221,9 +211,10 @@ if menu == "🏠 Dashboard":
         else:
             kategori = st.selectbox("Kategori", ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"])
             
-        # 3. Gunakan parameter 'value' dinamis (HAPUS parameter 'key' yang bikin error kemarin)
-        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, value=default_jumlah)
-        keterangan = st.text_input("Keterangan (Opsional)", value=default_ket)
+        # 2. Tempelkan angka counter ke parameter 'key'. 
+        # Jika form_key berubah, Streamlit akan membuat ulang input ini dari nol!
+        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, key=f"jumlah_{st.session_state.form_key}")
+        keterangan = st.text_input("Keterangan (Opsional)", key=f"ket_{st.session_state.form_key}")
         
         submit = st.button("💾 Simpan Data", use_container_width=True)
         
@@ -239,8 +230,9 @@ if menu == "🏠 Dashboard":
                 df = pd.concat([df, data_baru], ignore_index=True)
                 save_data(df)
                 
-                # 4. Aktifkan trigger reset sebelum memuat ulang halaman
-                st.session_state['reset_trigger'] = True
+                # 3. Tambah angka counternya saat disimpan. 
+                # Ini akan memaksa kolom input di-reset total saat rerun.
+                st.session_state.form_key += 1
                 
                 st.success("✅ Tersimpan!")
                 st.rerun() 
