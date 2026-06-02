@@ -135,7 +135,7 @@ if menu == "🏠 Dashboard":
     col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {pengeluaran_harian:,.0f}")
     col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
     
-    st.markdown(---)
+    st.markdown("---")
     # 3. POP-UP KALKULATOR DENGAN PROGRESS BAR
     with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
         st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
