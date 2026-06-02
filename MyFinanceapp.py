@@ -38,7 +38,7 @@ if st.sidebar.button("🚪 Logout"):
 
 st.rerun()
 
-# CUSTOM CSS ---
+# -- CUSTOM CSS ---
 st.markdown("""
 <style>
     div[data-testid="metric-container"] {
