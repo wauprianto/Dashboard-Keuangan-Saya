@@ -76,6 +76,7 @@ menu = st.sidebar.radio(
 )
 st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 | Financial Dashboard & Analytics")
+st.sidebar.caption("Prianto Sanema Wau")
 
 # Kumpulan kata-kata motivasi dinamis
 kumpulan_motivasi = [
@@ -148,11 +149,23 @@ if menu == "🏠 Beranda & Input":
                     st.error("⚠️ Jumlah tidak boleh nol.")
                     
     with col_tabel:
-        st.subheader("📋 Riwayat Hari Ini")
-        if not df_harian.empty:
-            st.dataframe(df_harian[['Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style.format({"Jumlah": "Rp {:,.0f}"}), use_container_width=True, height=280)
+        st.subheader("📋 Riwayat Transaksi")
+        if not df.empty:
+            # Mengurutkan data berdasarkan tanggal terbaru di atas
+            df_tampil = df.sort_values(by='Tanggal', ascending=False)
+            
+            # Menampilkan seluruh data (df) dan memunculkan kolom 'Tanggal'
+            st.dataframe(
+                df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style.format({
+                    "Tanggal": lambda x: x.strftime("%Y-%m-%d"), 
+                    "Jumlah": "Rp {:,.0f}"
+                }), 
+                use_container_width=True, 
+                height=280,
+                hide_index=True
+            )
         else:
-            st.markdown("<br><br><div style='text-align: center; color: gray;'>Belum ada aktivitas terekam hari ini.</div>", unsafe_allow_html=True)
+            st.markdown("<br><br><div style='text-align: center; color: gray;'>Belum ada riwayat transaksi.</div>", unsafe_allow_html=True)
 
 # ==========================================
 # MENU 2: ANALISIS BULANAN
