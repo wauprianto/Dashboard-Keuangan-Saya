@@ -100,7 +100,7 @@ st.sidebar.markdown("<h2 style='text-align: center; color: #00ffcc !important;'>
 st.sidebar.markdown("---")
 menu = st.sidebar.radio(
     "Navigasi Dashboard:",
-    ["🏠 Beranda & Input", "📈 Analisis Bulanan", "🔮 AI Prediksi", "🧮 Kalkulator Finansial"]
+    ["🏠 Beranda & Input", "📈 Analisis Bulanan", "🔮 AI Prediksi", "🧮 Kalkulator Finansial", "💬 Asisten AI"]
 )
 st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 | Financial Dashboard & Analytics")
