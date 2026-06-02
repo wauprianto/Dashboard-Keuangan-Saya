@@ -296,7 +296,6 @@ elif menu == "🧮 Kalkulator Finansial":
                 st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
                 st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
                 st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
-
 # ==========================================
 # MENU 5: ASISTEN AI (GEMINI AI)
 # ==========================================
