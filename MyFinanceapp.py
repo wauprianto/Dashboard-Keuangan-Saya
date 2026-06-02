@@ -307,15 +307,17 @@ elif menu == "💬 Asisten AI":
     # 1. Konfigurasi API Key secara aman dari Streamlit Secrets
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
-        genai.configure(api_key=api_key)
         
-        # 🌟 KOREKSI UTAMA: Menambahkan parameter api_version='v1' agar cocok dengan Token 'AQ.' Anda
-        model_ai = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
-            api_version='v1'
-        ) 
+        # 🌟 CARA BARU: Mengunci versi v1 langsung saat konfigurasi global agar library lama pun ikut patuh
+        genai.configure(api_key=api_key, client_options={"api_version": "v1"})
+        
+        # Kita kembalikan pemanggilan model ke format standar yang paling aman dari TypeError
+        model_ai = genai.GenerativeModel('gemini-1.5-flash') 
     except KeyError:
         st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets! Silakan atur terlebih dahulu.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Gagal melakukan inisialisasi AI: {e}")
         st.stop()
 
     # 2. Inisialisasi memori chat agar obrolan bersambung
@@ -349,3 +351,4 @@ elif menu == "💬 Asisten AI":
                     st.session_state.messages.append({"role": "assistant", "content": balasan})
                 except Exception as e:
                     st.error(f"Terjadi kesalahan koneksi ke AI: {e}")
+
