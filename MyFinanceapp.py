@@ -308,15 +308,15 @@ elif menu == "💬 Asisten AI":
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         
-        # 🌟 JALUR PALING AMAN: Mengimpor langsung ClientOptions resmi dari pustaka Google core
-        from google.api_core.client_options import ClientOptions
-        pilihan_klien = ClientOptions(api_version="v1")
+        # 🌟 TRIK PAMUNGKAS: Langsung tembak alamat server stabil (v1) Google 
+        # Tanpa menggunakan parameter 'api_version' yang memicu error
+        genai.configure(
+            api_key=api_key,
+            client_options={"client_info": None, "api_endpoint": "generativelanguage.googleapis.com"}
+        )
         
-        # Masukkan ke dalam configure
-        genai.configure(api_key=api_key, client_options=pilihan_klien)
-        
-        # Panggil model standar yang stabil
-        model_ai = genai.GenerativeModel('gemini-1.5-flash') 
+        # Menggunakan model standar yang paling didukung versi lama maupun baru
+        model_ai = genai.GenerativeModel('gemini-pro') 
     except KeyError:
         st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets! Silakan atur terlebih dahulu.")
         st.stop()
