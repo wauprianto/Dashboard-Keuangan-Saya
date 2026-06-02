@@ -13,7 +13,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- KONFIGURASI HALAMAN ---
-# Menggunakan layout wide dan sidebar terbuka dari awal
 st.set_page_config(page_title="Smart Finance", page_icon="💠", layout="wide", initial_sidebar_state="expanded")
 
 # --- FITUR KEAMANAN (LOGIN) ---
@@ -21,24 +20,20 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 if not st.session_state['logged_in']:
-    # Membuat tampilan login di tengah layar
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.markdown("<br><br><h2 style='text-align: center; color: #00ffcc;'>🔒 Akses Dasbor Keuangan</h2>", unsafe_allow_html=True)
         with st.container(border=True):
             password_input = st.text_input("Masukkan PIN / Password:", type="password")
             if st.button("Masuk", use_container_width=True):
-                # ⬇️ UBAH KATA SANDI DI BAWAH INI SESUAI KEINGINAN ANDA ⬇️
                 if password_input == "220303": 
                     st.session_state['logged_in'] = True
                     st.rerun()
                 else:
                     st.error("❌ Password salah!")
-    # st.stop() akan menghentikan eksekusi kode di bawahnya, sehingga dasbor tidak akan dimuat
     st.stop() 
 
 # --- TOMBOL LOGOUT DI SIDEBAR ---
-# Kode ini akan memunculkan tombol logout jika Anda sudah berhasil masuk
 if st.sidebar.button("🚪 Keluar (Logout)"):
     st.session_state['logged_in'] = False
     st.rerun()
@@ -46,7 +41,6 @@ if st.sidebar.button("🚪 Keluar (Logout)"):
 # --- CUSTOM CSS UNTUK TAMPILAN ELEGAN ---
 st.markdown("""
 <style>
-    /* Styling untuk Metric Cards agar terlihat seperti panel elegan */
     div[data-testid="metric-container"] {
         background: linear-gradient(145deg, #1e1e2e, #2b2b40);
         border-left: 5px solid #00ffcc;
@@ -55,24 +49,20 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    /* Efek melayang saat kursor diarahkan (Hover) */
     div[data-testid="metric-container"]:hover {
         transform: translateY(-5px);
         box-shadow: 0 8px 15px rgba(0, 255, 204, 0.2);
     }
-    /* Styling form input agar lebih soft */
     div[data-testid="stForm"] {
         background-color: rgba(30, 30, 46, 0.5);
         border: 1px solid #45475a;
         border-radius: 15px;
         padding: 25px;
     }
-    /* Mempercantik font judul */
     h1, h2, h3 {
         font-family: 'Trebuchet MS', sans-serif;
         color: #89b4fa !important;
     }
-    /* Menghilangkan padding atas bawaan Streamlit yang terlalu lebar */
     .block-container {
         padding-top: 2rem;
     }
@@ -106,7 +96,6 @@ st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 | Financial Dashboard & Analytics")
 st.sidebar.caption("Prianto Sanema Wau")
 
-# Kumpulan kata-kata motivasi dinamis
 kumpulan_motivasi = [
     "Membangun stabilitas finansial itu seperti melatih algoritma machine learning; butuh kesabaran, input data yang konsisten, dan evaluasi berkelanjutan.",
     "Perjalanan panjang berdiri di kereta setiap hari mungkin melelahkan, tapi jadikan itu saksi bisu perjuanganmu membangun masa depan yang solid.",
@@ -115,21 +104,18 @@ kumpulan_motivasi = [
 ]
 
 # ==========================================
-# MENU 1: BERANDA & INPUT (PENGGABUNGAN TAB 1 & 2)
+# MENU 1: BERANDA & INPUT
 # ==========================================
 if menu == "🏠 Beranda & Input":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     st.info(f"💡 **Quote Hari Ini:** *{random.choice(kumpulan_motivasi)}*")
     
-    # Tampilan Metrik
     hari_ini = pd.to_datetime(datetime.today().date())
     df_harian = df[df['Tanggal'] == hari_ini]
     
-    # 1. Pemasukan dan Pengeluaran HARI INI
     pemasukan_harian = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     pengeluaran_harian = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     
-    # 2. Saldo Akhir KESELURUHAN (Akumulasi seluruh waktu)
     total_pemasukan_semua = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     total_pengeluaran_semua = df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     saldo_akhir = total_pemasukan_semua - total_pengeluaran_semua
@@ -141,17 +127,13 @@ if menu == "🏠 Beranda & Input":
     
     st.markdown("---")
     
-    # Form Input di Bawahnya
     col_form, col_tabel = st.columns([1, 1.2])
     
     with col_form:
         st.subheader("📝 Catat Transaksi")
-        
-        # Form dihilangkan agar dropdown Kategori bisa berubah otomatis secara real-time
         tanggal = st.date_input("Tanggal Transaksi", datetime.today())
         tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
         
-        # Pilihan dropdown sekarang akan langsung berubah ketika radio button diklik
         if tipe == "Pemasukan":
             kategori = st.selectbox("Kategori", ["Gaji", "Bonus", "Investasi", "Lain-lain"])
         else:
@@ -160,7 +142,6 @@ if menu == "🏠 Beranda & Input":
         jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000)
         keterangan = st.text_input("Keterangan (Opsional)")
         
-        # Mengganti st.form_submit_button menjadi st.button biasa
         submit = st.button("💾 Simpan Data", use_container_width=True)
         
         if submit:
@@ -175,18 +156,14 @@ if menu == "🏠 Beranda & Input":
                 df = pd.concat([df, data_baru], ignore_index=True)
                 save_data(df)
                 st.success("✅ Tersimpan!")
-                st.rerun() # Merefresh halaman agar tabel langsung update
+                st.rerun()
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
 
-                    
     with col_tabel:
         st.subheader("📋 Riwayat Transaksi")
         if not df.empty:
-            # Mengurutkan data berdasarkan tanggal terbaru di atas
             df_tampil = df.sort_values(by='Tanggal', ascending=False)
-            
-            # Menampilkan seluruh data (df) dan memunculkan kolom 'Tanggal'
             st.dataframe(
                 df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style.format({
                     "Tanggal": lambda x: x.strftime("%Y-%m-%d"), 
@@ -216,7 +193,6 @@ elif menu == "📈 Analisis Bulanan":
         
         col_c1, col_c2 = st.columns(2)
         
-        # Grafik 1: Bar Chart
         with col_c1:
             st.subheader("Arus Kas Harian")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
@@ -226,7 +202,6 @@ elif menu == "📈 Analisis Bulanan":
             fig_bar.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_bar, use_container_width=True)
             
-        # Grafik 2: Donut Chart
         with col_c2:
             st.subheader("Distribusi Pengeluaran")
             df_pengeluaran = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']
@@ -322,7 +297,6 @@ elif menu == "🧮 Kalkulator Finansial":
                 st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
                 st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
 
-
 # ==========================================
 # MENU 5: ASISTEN AI (GEMINI AI)
 # ==========================================
@@ -334,8 +308,12 @@ elif menu == "💬 Asisten AI":
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
-        # Menggunakan model Gemini 1.5 Flash yang cepat
-        model_ai = genai.GenerativeModel('gemini-1.5-flash') 
+        
+        # 🌟 KOREKSI UTAMA: Menambahkan parameter api_version='v1' agar cocok dengan Token 'AQ.' Anda
+        model_ai = genai.GenerativeModel(
+            model_name='gemini-1.5-flash',
+            api_version='v1'
+        ) 
     except KeyError:
         st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets! Silakan atur terlebih dahulu.")
         st.stop()
@@ -353,28 +331,21 @@ elif menu == "💬 Asisten AI":
 
     # 4. Kotak Input & Proses Memanggil Gemini
     if prompt := st.chat_input("Ketik pertanyaan Anda di sini..."):
-        # Tampilkan pertanyaan Anda
         with st.chat_message("user"):
             st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        # Panggil API Gemini dan tampilkan balasan
         with st.chat_message("assistant"):
             with st.spinner("Sedang memproses data..."):
                 try:
-                    # Menambahkan prompt sistem agar AI tahu perannya
                     konteks = "Anda adalah asisten keuangan pribadi. Jawablah dengan ramah, profesional, dan berikan tips keuangan yang logis atau wawasan statistik jika relevan."
-                    
                     full_prompt = f"{konteks}\n\nPertanyaan pengguna: {prompt}"
                     
                     # Meminta jawaban ke server Google
                     response = model_ai.generate_content(full_prompt)
                     balasan = response.text
                     
-                    # Menampilkan jawaban
                     st.markdown(balasan)
-                    
-                    # Menyimpan jawaban ke memori
                     st.session_state.messages.append({"role": "assistant", "content": balasan})
                 except Exception as e:
                     st.error(f"Terjadi kesalahan koneksi ke AI: {e}")
