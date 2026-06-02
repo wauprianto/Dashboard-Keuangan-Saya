@@ -195,15 +195,23 @@ if menu == "🏠 Dashboard":
     st.markdown("<br>", unsafe_allow_html=True)
 
     col_form, col_tabel = st.columns([1, 1.2])
-    
-    with col_form:
+
+        with col_form:
         st.subheader("📝 Catat Transaksi")
         
-        # 1. Menyiapkan memori penampung (Session State)
-        if 'input_jumlah' not in st.session_state:
-            st.session_state['input_jumlah'] = 0
-        if 'input_keterangan' not in st.session_state:
-            st.session_state['input_keterangan'] = ""
+        # 1. Buat variabel penampung sementara di session_state jika belum ada
+        if 'reset_trigger' not in st.session_state:
+            st.session_state['reset_trigger'] = False
+
+        # 2. Tentukan nilai default secara dinamis berdasarkan trigger reset
+        if st.session_state['reset_trigger']:
+            default_jumlah = 0
+            default_ket = ""
+            # Matikan kembali triggernya setelah nilai dibersihkan
+            st.session_state['reset_trigger'] = False 
+        else:
+            default_jumlah = 0
+            default_ket = ""
             
         tanggal = st.date_input("Tanggal Transaksi", datetime.today())
         tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
@@ -213,27 +221,31 @@ if menu == "🏠 Dashboard":
         else:
             kategori = st.selectbox("Kategori", ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"])
             
-        # 2. Menghubungkan input dengan memori menggunakan 'key'
-        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, key='input_jumlah')
-        keterangan = st.text_input("Keterangan (Opsional)", key='input_keterangan')
+        # 3. Gunakan parameter 'value' dinamis (HAPUS parameter 'key' yang bikin error kemarin)
+        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, value=default_jumlah)
+        keterangan = st.text_input("Keterangan (Opsional)", value=default_ket)
         
         submit = st.button("💾 Simpan Data", use_container_width=True)
         
         if submit:
             if jumlah > 0:
-                data_baru = pd.DataFrame({'Tanggal': [pd.to_datetime(tanggal)],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
+                data_baru = pd.DataFrame({
+                    'Tanggal': [pd.to_datetime(tanggal)],
+                    'Tipe': [tipe],
+                    'Kategori': [kategori],
+                    'Jumlah': [jumlah],
+                    'Keterangan': [keterangan]
+                })
                 df = pd.concat([df, data_baru], ignore_index=True)
                 save_data(df)
                 
-                # 3. KUNCI UTAMANYA DI SINI: Kosongkan nilai sesaat sebelum halaman dimuat ulang
-                st.session_state['input_jumlah'] = 0
-                st.session_state['input_keterangan'] = ""
+                # 4. Aktifkan trigger reset sebelum memuat ulang halaman
+                st.session_state['reset_trigger'] = True
                 
                 st.success("✅ Tersimpan!")
                 st.rerun() 
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
-
 
     # 4. TABEL DENGAN FILTER DINAMIS - DIREVISI (Fungsi Pewarnaan Teks)
     with col_tabel:
