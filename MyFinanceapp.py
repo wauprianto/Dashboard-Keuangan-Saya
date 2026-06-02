@@ -196,7 +196,7 @@ if menu == "🏠 Dashboard":
 
     col_form, col_tabel = st.columns([1, 1.2])
 
-        with col_form:
+    with col_form:
         st.subheader("📝 Catat Transaksi")
         
         # 1. Buat variabel penampung sementara di session_state jika belum ada
