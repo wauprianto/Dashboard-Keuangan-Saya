@@ -198,6 +198,13 @@ if menu == "🏠 Dashboard":
     
     with col_form:
         st.subheader("📝 Catat Transaksi")
+        
+        # 1. Menyiapkan memori penampung (Session State)
+        if 'input_jumlah' not in st.session_state:
+            st.session_state['input_jumlah'] = 0
+        if 'input_keterangan' not in st.session_state:
+            st.session_state['input_keterangan'] = ""
+            
         tanggal = st.date_input("Tanggal Transaksi", datetime.today())
         tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
         
@@ -206,19 +213,27 @@ if menu == "🏠 Dashboard":
         else:
             kategori = st.selectbox("Kategori", ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"])
             
-        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000)
-        keterangan = st.text_input("Keterangan (Opsional)")
+        # 2. Menghubungkan input dengan memori menggunakan 'key'
+        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, key='input_jumlah')
+        keterangan = st.text_input("Keterangan (Opsional)", key='input_keterangan')
         
         submit = st.button("💾 Simpan Data", use_container_width=True)
+        
         if submit:
             if jumlah > 0:
                 data_baru = pd.DataFrame({'Tanggal': [pd.to_datetime(tanggal)],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
                 df = pd.concat([df, data_baru], ignore_index=True)
                 save_data(df)
+                
+                # 3. KUNCI UTAMANYA DI SINI: Kosongkan nilai sesaat sebelum halaman dimuat ulang
+                st.session_state['input_jumlah'] = 0
+                st.session_state['input_keterangan'] = ""
+                
                 st.success("✅ Tersimpan!")
-                st.rerun()
+                st.rerun() 
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
+
 
     # 4. TABEL DENGAN FILTER DINAMIS - DIREVISI (Fungsi Pewarnaan Teks)
     with col_tabel:
