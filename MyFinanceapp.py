@@ -116,37 +116,41 @@ if menu == "🏠 Beranda & Input":
     # Form Input di Bawahnya
     col_form, col_tabel = st.columns([1, 1.2])
     
-    with col_form:
+        with col_form:
         st.subheader("📝 Catat Transaksi")
-        with st.form("form_transaksi", clear_on_submit=True):
-            tanggal = st.date_input("Tanggal Transaksi", datetime.today())
-            tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
+        
+        # Form dihilangkan agar dropdown Kategori bisa berubah otomatis secara real-time
+        tanggal = st.date_input("Tanggal Transaksi", datetime.today())
+        tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
+        
+        # Pilihan dropdown sekarang akan langsung berubah ketika radio button diklik
+        if tipe == "Pemasukan":
+            kategori = st.selectbox("Kategori", ["Gaji", "Bonus", "Investasi", "Lain-lain"])
+        else:
+            kategori = st.selectbox("Kategori", ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"])
             
-            if tipe == "Pemasukan":
-                kategori = st.selectbox("Kategori", ["Gaji", "Bonus", "Investasi", "Lain-lain"])
+        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000)
+        keterangan = st.text_input("Keterangan (Opsional)")
+        
+        # Mengganti st.form_submit_button menjadi st.button biasa
+        submit = st.button("💾 Simpan Data", use_container_width=True)
+        
+        if submit:
+            if jumlah > 0:
+                data_baru = pd.DataFrame({
+                    'Tanggal': [pd.to_datetime(tanggal)],
+                    'Tipe': [tipe],
+                    'Kategori': [kategori],
+                    'Jumlah': [jumlah],
+                    'Keterangan': [keterangan]
+                })
+                df = pd.concat([df, data_baru], ignore_index=True)
+                save_data(df)
+                st.success("✅ Tersimpan!")
+                st.rerun() # Merefresh halaman agar tabel langsung update
             else:
-                kategori = st.selectbox("Kategori", ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"])
-                
-            jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000)
-            keterangan = st.text_input("Keterangan (Opsional)")
-            
-            submit = st.form_submit_button("💾 Simpan Data", use_container_width=True)
-            
-            if submit:
-                if jumlah > 0:
-                    data_baru = pd.DataFrame({
-                        'Tanggal': [pd.to_datetime(tanggal)],
-                        'Tipe': [tipe],
-                        'Kategori': [kategori],
-                        'Jumlah': [jumlah],
-                        'Keterangan': [keterangan]
-                    })
-                    df = pd.concat([df, data_baru], ignore_index=True)
-                    save_data(df)
-                    st.success("✅ Tersimpan!")
-                    st.rerun()
-                else:
-                    st.error("⚠️ Jumlah tidak boleh nol.")
+                st.error("⚠️ Jumlah tidak boleh nol.")
+
                     
     with col_tabel:
         st.subheader("📋 Riwayat Transaksi")
