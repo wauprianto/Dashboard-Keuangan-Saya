@@ -36,29 +36,36 @@ if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
-# --- CUSTOM CSS (MODERN LOOK) ---
+st.rerun()
+
+# CUSTOM CSS ---
 st.markdown("""
 <style>
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    }
     div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 20px;
+        background: linear-gradient(145deg, #1e1e2e, #2b2b40);
+        border-left: 5px solid #00ffcc;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 255, 204, 0.2);
+    }
+    div[data-testid="stForm"] {
+        background-color: rgba(30, 30, 46, 0.5);
+        border: 1px solid #45475a;
         border-radius: 15px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        padding: 25px;
     }
-    .stButton>button {
-        border-radius: 8px;
-        transition: all 0.3s ease;
+    h1, h2, h3 {
+        font-family: 'Trebuchet MS', sans-serif;
+        color: #89b4fa !important;
     }
-    .stButton>button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 5px 15px rgba(0, 255, 204, 0.3);
+    .block-container {
+        padding-top: 2rem;
     }
-    h1, h2, h3 { color: #00ffcc !important; }
 </style>
 """, unsafe_allow_html=True)
 
