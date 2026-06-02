@@ -335,7 +335,7 @@ elif menu == "💬 Asisten AI":
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
         # Menggunakan model Gemini 1.5 Flash yang cepat
-        model_ai = genai.GenerativeModel('gemini-1.5-flash') 
+        model_ai = genai.GenerativeModel('gemini-pro') 
     except KeyError:
         st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets! Silakan atur terlebih dahulu.")
         st.stop()
