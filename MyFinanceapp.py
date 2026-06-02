@@ -135,8 +135,7 @@ if menu == "🏠 Dashboard":
     col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {pengeluaran_harian:,.0f}")
     col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
     
-    st.markdown("---")
-    
+    st.markdown(---)
     # 3. POP-UP KALKULATOR DENGAN PROGRESS BAR
     with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
         st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
@@ -147,27 +146,39 @@ if menu == "🏠 Dashboard":
             with st.container(border=True):
                 nama_target = st.text_input("Nama Target", "Laptop Baru / Liburan")
                 nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
+                jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
                 
-                # Fitur Progress Bar
-                if nominal_target > 0:
-                    persentase = min(saldo_akhir / nominal_target, 1.0)
-                    if saldo_akhir >= nominal_target:
-                        st.success(f"🎉 Selamat! Target **{nama_target}** sudah tercapai!")
-                    else:
-                        st.progress(persentase)
-                        st.caption(f"Terkumpul: **Rp {saldo_akhir:,.0f}** dari Rp {nominal_target:,.0f} ({persentase*100:.1f}%)")
+                # Tambahan Tombol Hitung Target
+                if st.button("Hitung Target", use_container_width=True):
+                    if nominal_target > 0:
+                        per_bulan = nominal_target / jangka_waktu
+                        st.success(f"Anda perlu menyisihkan **Rp {per_bulan:,.0f} / bulan**.")
+                        
+                        # Fitur Progress Bar yang terhubung dengan Saldo Akhir
+                        persentase = min(saldo_akhir / nominal_target, 1.0)
+                        if saldo_akhir >= nominal_target:
+                            st.info(f"🎉 Selamat! Saldo saat ini sudah cukup untuk **{nama_target}**!")
+                        else:
+                            st.progress(persentase)
+                            st.caption(f"Terkumpul saat ini: **Rp {saldo_akhir:,.0f}** dari Rp {nominal_target:,.0f} ({persentase*100:.1f}%)")
                     
         with col_budget:
             st.subheader("📊 Anggaran 50/30/20")
             with st.container(border=True):
                 gaji = st.number_input("Estimasi Pendapatan Bulan Ini (Rp)", min_value=0, value=5000000, step=100000)
-                if gaji > 0:
-                    kebutuhan = gaji * 0.50
-                    keinginan = gaji * 0.30
-                    tabungan = gaji * 0.20
-                    st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
-                    st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
-                    st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
+                
+                # Tambahan Tombol Hitung Anggaran
+                if st.button("Hitung Anggaran", use_container_width=True):
+                    if gaji > 0:
+                        kebutuhan = gaji * 0.50
+                        keinginan = gaji * 0.30
+                        tabungan = gaji * 0.20
+                        
+                        st.success("✅ Rincian alokasi ideal Anda:")
+                        st.markdown(f"**Kebutuhan Pokok (50%):** Rp {kebutuhan:,.0f}")
+                        st.markdown(f"**Keinginan/Hobi (30%):** Rp {keinginan:,.0f}")
+                        st.markdown(f"**Investasi/Tabungan (20%):** Rp {tabungan:,.0f}")
+
     
     st.markdown("<br>", unsafe_allow_html=True)
     
