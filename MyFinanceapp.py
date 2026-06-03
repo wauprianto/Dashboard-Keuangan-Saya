@@ -144,25 +144,17 @@ st.sidebar.markdown("---")
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 AI Predict & Stats"])
 st.sidebar.markdown("---")
 
-# FITUR KOREKSI: LIVE API CRYPTO TRACKER (SEKARANG BISA DI-KLIK)
+# FITUR KOREKSI: TOMBOL LIVE API (MENGGUNAKAN NATIVE STREAMLIT BUTTON AGAR PASTI BISA DIKLIK)
 st.sidebar.caption("🌍 Live Global Market")
+st.sidebar.link_button("📈 Buka Market Binance (BTC)", "https://www.binance.com/en/trade/BTC_USDT", use_container_width=True)
+
 try:
     btc_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3)
     if btc_res.status_code == 200:
         btc_price = float(btc_res.json()['price'])
-        # Mengubahnya menjadi tombol hyperlink yang menarik
-        st.sidebar.markdown(
-            f"""
-            <a href="https://www.binance.com/en/trade/BTC_USDT" target="_blank" style="text-decoration: none;">
-                <div style="background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid #f3ba2f; text-align: center; transition: 0.3s;">
-                    <span style="color: #f3ba2f; font-weight: bold; font-size: 16px;">₿ Bitcoin (BTC)</span><br>
-                    <span style="color: var(--text-color); font-size: 18px;">${btc_price:,.2f}</span>
-                </div>
-            </a>
-            """, unsafe_allow_html=True
-        )
+        st.sidebar.info(f"**Harga Live:** ${btc_price:,.2f}")
 except:
-    st.sidebar.caption("Gagal memuat API Pasar.")
+    st.sidebar.caption("Gagal memuat harga live saat ini.")
 
 st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 | Analytics Dashboard")
@@ -187,12 +179,17 @@ if menu == "🏠 Dashboard":
     out_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     saldo_akhir = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     
+    # Delta (Selisih dengan hari sebelumnya)
     delta_in = int(in_hari_ini - in_kemarin)
     delta_out = int(out_hari_ini - out_kemarin)
     
+    # Jika tidak ada transaksi kemarin, delta tidak usah ditampilkan agar tidak membingungkan
+    d_in_str = f"{delta_in:,.0f} vs kemarin" if in_kemarin > 0 or in_hari_ini > 0 else None
+    d_out_str = f"{delta_out:,.0f} vs kemarin" if out_kemarin > 0 or out_hari_ini > 0 else None
+
     col1, col2, col3 = st.columns(3)
-    col1.metric("🟢 Pemasukan Hari Ini", f"Rp {in_hari_ini:,.0f}", delta=f"{delta_in:,.0f} vs kemarin")
-    col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {out_hari_ini:,.0f}", delta=f"{delta_out:,.0f} vs kemarin", delta_color="inverse")
+    col1.metric("🟢 Pemasukan Hari Ini", f"Rp {in_hari_ini:,.0f}", delta=d_in_str)
+    col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {out_hari_ini:,.0f}", delta=d_out_str, delta_color="inverse")
     col3.metric("💎 Saldo Akhir (Aktual)", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
@@ -246,7 +243,6 @@ if menu == "🏠 Dashboard":
                 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': batas_aman}
             }
         ))
-        # Theme Streamlit untuk menyesuaikan Dark/Light otomatis
         fig_gauge.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0))
         st.plotly_chart(fig_gauge, use_container_width=True, theme="streamlit")
         st.caption(f"*Batas harian: Rp {batas_aman:,.0f}*")
@@ -320,11 +316,10 @@ elif menu == "📈 Analyze":
             csv = df_bulanan.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Data (CSV)", data=csv, file_name=f"Data_{bulan_pilihan}.csv", mime="text/csv", use_container_width=True)
             
-        # FITUR KOREKSI: TOMBOL EXPORT PDF
+        # TOMBOL EXPORT PDF
         with col_opt3:
             st.markdown("<br>", unsafe_allow_html=True)
             if PDF_READY:
-                # Membuat PDF sementara
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
@@ -343,7 +338,6 @@ elif menu == "📈 Analyze":
                 for index, row in df_keluar_pdf.iterrows():
                     pdf.cell(200, 8, txt=f"- {row['Kategori']}: Rp {row['Jumlah']:,.0f}", ln=True)
                 
-                # Simpan ke memori untuk di-download
                 tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
                 pdf.output(tmp_file.name)
                 with open(tmp_file.name, "rb") as f:
@@ -351,7 +345,7 @@ elif menu == "📈 Analyze":
                 
                 st.download_button("📄 Ekspor Laporan (PDF)", data=pdf_bytes, file_name=f"Laporan_{bulan_pilihan}.pdf", mime="application/pdf", use_container_width=True)
             else:
-                st.error("Tambahkan `fpdf` di requirements.txt untuk fitur cetak PDF.")
+                st.error("Tambahkan `fpdf` di requirements.txt untuk cetak PDF.")
 
         st.markdown("---")
         
@@ -379,7 +373,7 @@ elif menu == "📈 Analyze":
             
         st.markdown("---")
 
-        # 2. GRAFIK BAR & PIE (KEMBALI HADIR DAN ADAPTIF TEMA)
+        # 2. GRAFIK BAR & PIE
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.subheader("📊 Arus Kas Harian")
