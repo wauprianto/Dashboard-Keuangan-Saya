@@ -345,12 +345,12 @@ elif menu == "🔮 AI Predict":
 # ==========================================
 with st.popover("💬", use_container_width=False):
     st.markdown("<h4 style='text-align: center;'>AI Financial Advisor</h4>", unsafe_allow_html=True)
-    st.caption("Ketik pertanyaan Anda tentang keuangan bulan ini.")
+    st.caption("Tanya soal keuangan, coding, atau sapa saja!")
 
     # 1. Inisialisasi memori riwayat chat
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Halo! Saya AI Advisor Anda. Ada yang ingin dianalisis dari pengeluaran bulan ini?"}
+            {"role": "assistant", "content": "Halo Prianto! Saya AI Advisor kamu. Mau ngobrolin apa hari ini? Kalau mau cek dompet juga boleh."}
         ]
 
     # 2. Area khusus bergulir (scrolling) untuk menampilkan chat
@@ -397,12 +397,21 @@ with st.popover("💬", use_container_width=False):
             # Mulai sesi obrolan terstruktur dengan API
             chat_session = model_ai.start_chat(history=formatted_history)
             
-            # Gabungkan informasi rahasia agar AI tahu saldo Anda tanpa perlu Anda ketik
-            konteks_rahasia = f"[INFO SISTEM: Pemasukan Bulan Ini Rp {in_bln:,.0f}, Pengeluaran Rp {out_bln:,.0f}, Sisa Rp {sisa_bln:,.0f}]\n\n"
-            full_prompt = konteks_rahasia + user_msg
+            # --- INSTRUKSI KEPRIBADIAN AI ---
+            instruksi_sistem = f"""[INSTRUKSI SISTEM: Kamu adalah asisten AI finansial dan teman ngobrol yang asik. Pengguna aplikasi ini bernama Prian (mahasiswa Statistika, suka Python/SQL/R, hobi lari, main game, nonton anime, dan sering naik kereta untuk bekerja di warehouse).
+            Aturan ketat untuk merespons:
+            1. Jika Prian hanya menyapa (misal: "Halo", "Test", "Pagi"), balas santai dan hangat. JANGAN tampilkan data keuangan!
+            2. Kamu bisa diajak ngobrol topik apa saja (coding, statistik, anime, game, rutinitas kereta, dll).
+            3. HANYA JIKA ditanya spesifik tentang keuangannya (misal: "Sisa uangku?", "Analisis dompetku", "Bulan ini boros ga?"), barulah gunakan data ini untuk menganalisis:
+               - Pemasukan Bulan Ini: Rp {in_bln:,.0f}
+               - Pengeluaran Bulan Ini: Rp {out_bln:,.0f}
+               - Sisa Saldo: Rp {sisa_bln:,.0f}
+            ]
             
-            # Kirim pertanyaan dan simpan balasan AI
-            response = chat_session.send_message(full_prompt)
+            Pesan Prian: {user_msg}"""
+            
+            # Kirim pertanyaan dan instruksi, lalu simpan balasan AI
+            response = chat_session.send_message(instruksi_sistem)
             st.session_state.chat_history.append({"role": "assistant", "content": response.text})
             
             # Refresh otomatis agar chat terbaru langsung muncul
