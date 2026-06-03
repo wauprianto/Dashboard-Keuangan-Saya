@@ -355,9 +355,14 @@ with st.popover("💬", use_container_width=False):
     
     if st.button("🧠 Buat Analisis Sekarang", use_container_width=True):
         try:
-            api_key_saya = st.secrets["Gemini_API_Key"]
-            genai.configure(api_key=api_key_saya, client_options={"client_info": None, "api_endpoint": "generativelanguage.googleapis.com"})
-            model_ai = genai.GenerativeModel('gemini-pro') 
+            # 1. Ambil API Key dari Streamlit Secrets
+            api_key = st.secrets["GEMINI_API_KEY"]
+            
+            # 2. KONFIGURASI BERSIH: Tanpa menggunakan client_options sama sekali!
+            genai.configure(api_key=api_key)
+            
+            # 3. Panggil model standar terbaru yang paling stabil
+            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite') 
             
             with st.spinner("AI sedang berpikir..."):
                 bulan_ini = pd.Timestamp.now().to_period('M')
