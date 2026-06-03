@@ -5,3 +5,4 @@ statsmodels
 numpy
 scikit-learn
 google-generativeai
+requests
