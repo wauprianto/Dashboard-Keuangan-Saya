@@ -161,11 +161,9 @@ if menu == "🏠 Dashboard":
     # FITUR 2: AI ANOMALY DETECTION (ISOLATION FOREST)
     df_pengeluaran_all = df[df['Tipe'] == 'Pengeluaran']
     if len(df_pengeluaran_all) > 10 and pengeluaran_harian > 0: 
-        # Siapkan data historis pengeluaran harian untuk dilatih ke AI
         pengeluaran_hist = df_pengeluaran_all.groupby(df_pengeluaran_all['Tanggal_Clean'].dt.date)['Jumlah'].sum().reset_index()
         X = pengeluaran_hist[['Jumlah']].values
         
-        # Algoritma Machine Learning (Mencari 5% data paling aneh)
         model_iso = IsolationForest(contamination=0.05, random_state=42)
         model_iso.fit(X)
         prediksi_anomali = model_iso.predict([[pengeluaran_harian]])
@@ -219,10 +217,7 @@ if menu == "🏠 Dashboard":
         tanggal = st.date_input("Tanggal Transaksi", datetime.today())
         tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
         
-        # Posisi Keterangan dinaikkan agar AI bisa membaca konteksnya lebih dulu
         keterangan = st.text_input("Keterangan", placeholder="Cth: Beli Kopi Kenangan", key=f"ket_{st.session_state.form_key}")
-        
-        # Eksekusi fungsi AI Auto-Kategori
         prediksi_kat = tebak_kategori(keterangan, tipe) if keterangan else "Lain-lain"
         
         if tipe == "Pemasukan":
@@ -346,52 +341,73 @@ elif menu == "🔮 AI Predict":
             st.error(f"Gagal melakukan kalkulasi AI: {e}")
 
 # ==========================================
-# FITUR 3: AI ADVISOR (FLOATING CHAT BUBBLE)
-# (Posisinya sengaja ditaruh paling bawah agar CSS Float berfungsi)
+# FITUR 3: AI ADVISOR (FLOATING CHAT INTERAKTIF)
 # ==========================================
 with st.popover("💬", use_container_width=False):
     st.markdown("<h4 style='text-align: center;'>AI Financial Advisor</h4>", unsafe_allow_html=True)
-    st.caption("AI akan mengevaluasi arus kas Anda bulan ini dan memberikan wawasan cerdas.")
-    
-    if st.button("🧠 Buat Analisis Sekarang", use_container_width=True):
+    st.caption("Ketik pertanyaan Anda tentang keuangan bulan ini.")
+
+    # 1. Inisialisasi memori riwayat chat
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = [
+            {"role": "assistant", "content": "Halo! Saya AI Advisor Anda. Ada yang ingin dianalisis dari pengeluaran bulan ini?"}
+        ]
+
+    # 2. Area khusus bergulir (scrolling) untuk menampilkan chat
+    chat_container = st.container(height=300)
+    with chat_container:
+        for msg in st.session_state.chat_history:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+    # 3. Form input pesan di bagian bawah
+    with st.form("chat_form", clear_on_submit=True):
+        cols = st.columns([4, 1])
+        with cols[0]:
+            user_msg = st.text_input("Pesan:", label_visibility="collapsed", placeholder="Tanya sesuatu...")
+        with cols[1]:
+            submit_chat = st.form_submit_button("Kirim")
+
+    # 4. Logika saat tombol Kirim ditekan
+    if submit_chat and user_msg:
+        # Simpan pesan pengguna ke dalam memori layar
+        st.session_state.chat_history.append({"role": "user", "content": user_msg})
+        
         try:
-            # 1. Ambil API Key dari Streamlit Secrets
+            # Setup koneksi AI
             api_key = st.secrets["Gemini_API_Key"]
-            
-            # 2. KONFIGURASI BERSIH: Tanpa menggunakan client_options sama sekali!
             genai.configure(api_key=api_key)
+            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
             
-            # 3. Panggil model standar terbaru yang paling stabil
-            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite') 
+            # Hitung data riil bulan ini untuk disuapkan ke otak AI
+            bulan_ini = pd.Timestamp.now().to_period('M')
+            df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
+            df_bulan_ini = df[df['Bulan_Tahun'] == bulan_ini]
             
-            with st.spinner("AI sedang berpikir..."):
-                bulan_ini = pd.Timestamp.now().to_period('M')
-                df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
-                df_bulan_ini = df[df['Bulan_Tahun'] == bulan_ini]
+            in_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+            out_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+            sisa_bln = in_bln - out_bln
+            
+            # Format history percakapan sebelumnya agar AI ingat konteks obrolan
+            formatted_history = []
+            for chat in st.session_state.chat_history[:-1]: # Abaikan pesan terakhir
+                role = "model" if chat["role"] == "assistant" else "user"
+                formatted_history.append({"role": role, "parts": [chat["content"]]})
                 
-                in_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-                out_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-                sisa_bln = in_bln - out_bln
-                
-                kat_terbesar_info = ""
-                if out_bln > 0:
-                    pengeluaran_kat = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum()
-                    kat_top = pengeluaran_kat.idxmax()
-                    kat_val = pengeluaran_kat.max()
-                    kat_terbesar_info = f"Kategori pengeluaran terbesar adalah {kat_top} sebesar Rp {kat_val:,.0f}."
-                    
-                prompt = f"""
-                Anda adalah penasihat keuangan. Berikan evaluasi singkat dan santai mengenai kondisi keuangan saya bulan ini.
-                - Pemasukan: Rp {in_bln:,.0f}
-                - Pengeluaran: Rp {out_bln:,.0f}
-                - Sisa Saldo: Rp {sisa_bln:,.0f}
-                - {kat_terbesar_info}
-                Berikan 1 paragraf evaluasi kesimpulan dan 3 bullet points saran praktis.
-                """
-                response = model_ai.generate_content(prompt)
-                st.success("Analisis Selesai!")
-                st.markdown(response.text)
-                
+            # Mulai sesi obrolan terstruktur dengan API
+            chat_session = model_ai.start_chat(history=formatted_history)
+            
+            # Gabungkan informasi rahasia agar AI tahu saldo Anda tanpa perlu Anda ketik
+            konteks_rahasia = f"[INFO SISTEM: Pemasukan Bulan Ini Rp {in_bln:,.0f}, Pengeluaran Rp {out_bln:,.0f}, Sisa Rp {sisa_bln:,.0f}]\n\n"
+            full_prompt = konteks_rahasia + user_msg
+            
+            # Kirim pertanyaan dan simpan balasan AI
+            response = chat_session.send_message(full_prompt)
+            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+            
+            # Refresh otomatis agar chat terbaru langsung muncul
+            st.rerun()
+            
         except KeyError:
             st.error("⚠️ API Key Gemini belum diatur di Streamlit Secrets!")
         except Exception as e:
