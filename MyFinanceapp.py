@@ -173,7 +173,7 @@ if menu == "🏠 Dashboard":
     
     with col_gauge:
         # FITUR 6: SPIDOMETER BURN RATE
-        st.subheader("Burn Rate Meter")
+        st.subheader("🏎️ Burn Rate Meter")
         batas_aman = 150000 
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number",
@@ -236,8 +236,30 @@ if menu == "🏠 Dashboard":
                 st.rerun()
                 
     st.markdown("---")
+    
+    # -----------------------------------------------------
+    # KOREKSI: TABEL RIWAYAT TRANSAKSI (TANPA TANGGAL_CLEAN & DENGAN FORMAT TITIK)
+    # -----------------------------------------------------
     st.subheader("📋 Riwayat Transaksi")
-    st.dataframe(df.sort_values(by='Tanggal', ascending=False), use_container_width=True, height=200, hide_index=True)
+    if not df.empty:
+        pilihan_tipe = st.multiselect("Filter Jenis:", options=["Pemasukan", "Pengeluaran"], default=["Pemasukan", "Pengeluaran"])
+        
+        # Ekstrak data dan buang Tanggal_Clean
+        df_tampil = df[df['Tipe'].isin(pilihan_tipe)].sort_values(by='Tanggal', ascending=False)
+        df_tampil = df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].copy()
+        
+        # Format Angka Ribuan dengan Titik (.)
+        df_tampil['Jumlah'] = df_tampil['Jumlah'].apply(lambda x: f"{int(x):,}".replace(",", "."))
+        
+        def color_jumlah(row):
+            return ['color: #2ecc71'] * len(row) if row['Tipe'] == 'Pemasukan' else ['color: #e74c3c'] * len(row)
+            
+        st.dataframe(
+            df_tampil.style.apply(color_jumlah, axis=1).format({"Tanggal": lambda x: x.strftime("%Y-%m-%d")}), 
+            use_container_width=True, height=350, hide_index=True
+        )
+    else:
+        st.markdown("<div style='text-align: center; color: gray;'>Belum ada riwayat transaksi.</div>", unsafe_allow_html=True)
 
 # ==========================================
 # MENU 2: ANALISIS BULANAN 
@@ -408,7 +430,7 @@ elif menu == "🔮 Advanced Stats & Predict":
 with st.popover("💬", use_container_width=False):
     st.markdown("<h4 style='text-align: center;'>AI Advisor</h4>", unsafe_allow_html=True)
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [{"role": "assistant", "content": "Halo! Ada yang bisa dibantu?"}]
+        st.session_state.chat_history = [{"role": "assistant", "content": "Halo! Aku AI Advisor Kamu, Ada yang bisa dibantu?"}]
 
     with st.container(height=300):
         for msg in st.session_state.chat_history:
