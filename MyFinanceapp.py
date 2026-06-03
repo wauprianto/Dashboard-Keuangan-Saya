@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import random
 import requests
@@ -133,7 +133,7 @@ def tebak_kategori(keterangan, tipe):
             return "Investasi"
     return "Lain-lain"
 
-# --- SIDEBAR & LIVE API CRYPTO ---
+# --- SIDEBAR NAVIGATION ---
 st.sidebar.markdown("<h2 style='text-align: center; color: #00ffcc !important;'>💠 Smart Finance</h2>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 AI Predict & Stats"])
@@ -176,25 +176,52 @@ if menu == "🏠 Dashboard":
     delta_in = int(in_hari_ini - in_kemarin)
     delta_out = int(out_hari_ini - out_kemarin)
     
-    # FITUR BARU: SPIDOMETER BURN RATE
     col1, col2, col3 = st.columns(3)
-    # FITUR BARU: INDIKATOR DELTA
     col1.metric("🟢 Pemasukan Hari Ini", f"Rp {in_hari_ini:,.0f}", delta=f"{delta_in:,.0f} vs kemarin")
     col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {out_hari_ini:,.0f}", delta=f"{delta_out:,.0f} vs kemarin", delta_color="inverse")
     col3.metric("💎 Saldo Akhir (Aktual)", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
     
-    col_gauge, col_form = st.columns([1, 1.5])
+    # POP-UP KALKULATOR (DIKEMBALIKAN)
+    with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
+        st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
+        col_target, col_budget = st.columns(2)
+        with col_target:
+            st.subheader("🎯 Kalkulator Target")
+            with st.form("form_kalkulator_target", border=True):
+                nama_target = st.text_input("Nama Target", "Laptop Baru / Liburan")
+                nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
+                jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
+                if st.form_submit_button("Hitung Target", use_container_width=True):
+                    if nominal_target > 0:
+                        st.success(f"Anda perlu menyisihkan **Rp {nominal_target/jangka_waktu:,.0f} / bulan**.")
+                        persentase = min(saldo_akhir / nominal_target, 1.0)
+                        if saldo_akhir >= nominal_target:
+                            st.info(f"🎉 Selamat! Saldo saat ini sudah cukup untuk **{nama_target}**!")
+                        else:
+                            st.progress(max(0.0, persentase))
+                            st.caption(f"Terkumpul saat ini: **Rp {saldo_akhir:,.0f}** dari Rp {nominal_target:,.0f}")
+        with col_budget:
+            st.subheader("📊 Anggaran 50/30/20")
+            with st.form("form_kalkulator_anggaran", border=True):
+                gaji = st.number_input("Estimasi Pendapatan Bulan Ini (Rp)", min_value=0, value=5000000, step=100000)
+                if st.form_submit_button("Hitung Anggaran", use_container_width=True):
+                    if gaji > 0:
+                        st.success("✅ Rincian alokasi ideal Anda:")
+                        st.markdown(f"**Pokok (50%):** Rp {gaji*0.5:,.0f} | **Hobi (30%):** Rp {gaji*0.3:,.0f} | **Tabungan (20%):** Rp {gaji*0.2:,.0f}")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col_gauge, col_form, col_tabel = st.columns([1, 1, 1.5]) # DIBAGI 3 KOLOM SEKARANG
     
     with col_gauge:
-        st.subheader("🏎️ Burn Rate Speedometer")
-        # Asumsi batas aman pengeluaran harian adalah 150rb
+        st.subheader("🏎️ Burn Rate")
         batas_aman = 150000 
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = out_hari_ini,
-            title = {'text': "Kecepatan Pengeluaran Hari Ini"},
+            title = {'text': "Kecepatan Pengeluaran", 'font': {'size': 14}},
             domain = {'x': [0, 1], 'y': [0, 1]},
             gauge = {
                 'axis': {'range': [None, batas_aman * 2]},
@@ -205,9 +232,9 @@ if menu == "🏠 Dashboard":
                 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': batas_aman}
             }
         ))
-        fig_gauge.update_layout(height=250, margin=dict(t=40, b=0, l=0, r=0), template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        fig_gauge.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0), template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_gauge, use_container_width=True)
-        st.caption(f"*Batas merah diset pada Rp {batas_aman:,.0f}/hari.*")
+        st.caption(f"*Batas merah: Rp {batas_aman:,.0f}/hari.*")
 
     with col_form:
         st.subheader("📝 Catat Transaksi")
@@ -236,6 +263,22 @@ if menu == "🏠 Dashboard":
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
 
+    # TABEL DENGAN FILTER DINAMIS (DIKEMBALIKAN)
+    with col_tabel:
+        st.subheader("📋 Riwayat Transaksi")
+        if not df.empty:
+            pilihan_tipe = st.multiselect("Filter Jenis:", options=["Pemasukan", "Pengeluaran"], default=["Pemasukan", "Pengeluaran"])
+            df_tampil = df[df['Tipe'].isin(pilihan_tipe)].sort_values(by='Tanggal', ascending=False)
+            def color_jumlah(row):
+                return ['color: #00ffcc'] * len(row) if row['Tipe'] == 'Pemasukan' else ['color: #ff4d4d'] * len(row)
+            st.dataframe(
+                df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].style.apply(color_jumlah, axis=1).format({"Tanggal": lambda x: x.strftime("%Y-%m-%d"), "Jumlah": "Rp {:,.0f}"}), 
+                use_container_width=True, height=295, hide_index=True
+            )
+        else:
+            st.markdown("<div style='text-align: center; color: gray;'>Belum ada riwayat transaksi.</div>", unsafe_allow_html=True)
+
+
 # ==========================================
 # MENU 2: ANALISIS BULANAN 
 # ==========================================
@@ -246,12 +289,21 @@ elif menu == "📈 Analyze":
     else:
         df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
         list_bulan_str = [str(b) for b in sorted(df['Bulan_Tahun'].unique(), reverse=True)]
-        bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str)
+        
+        col_opt1, col_opt2 = st.columns([1, 3])
+        with col_opt1:
+            bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str)
         df_bulanan = df[df['Bulan_Tahun'] == bulan_pilihan]
+        
+        # TOMBOL DOWNLOAD CSV (DIKEMBALIKAN)
+        with col_opt2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            csv = df_bulanan.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download Laporan (CSV)", data=csv, file_name=f"Laporan_{bulan_pilihan}.csv", mime="text/csv")
             
         st.markdown("---")
         
-        # FITUR BARU: SANKEY DIAGRAM (PETA ARUS KAS)
+        # 1. PETA ARUS KAS (SANKEY)
         st.subheader("🌊 Peta Arus Kas (Sankey Diagram)")
         total_masuk = df_bulanan[df_bulanan['Tipe'] == 'Pemasukan']['Jumlah'].sum()
         df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
@@ -277,16 +329,36 @@ elif menu == "📈 Analyze":
             st.info("Belum ada aliran kas bulan ini.")
             
         st.markdown("---")
+
+        # 2. GRAFIK BAR & PIE (DIKEMBALIKAN)
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            st.subheader("📊 Arus Kas Harian")
+            df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
+            df_tren['Tanggal'] = df_tren['Tanggal'].dt.strftime('%Y-%m-%d')
+            fig_bar = px.bar(df_tren, x='Tanggal', y='Jumlah', color='Tipe', barmode='group', color_discrete_map={"Pemasukan": "#00ffcc", "Pengeluaran": "#ff4d4d"}, template="plotly_dark")
+            fig_bar.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_bar, use_container_width=True)
+            
+        with col_c2:
+            st.subheader("🍕 Distribusi Pengeluaran")
+            df_pengeluaran = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']
+            if not df_pengeluaran.empty:
+                fig_pie = px.pie(df_pengeluaran, values='Jumlah', names='Kategori', hole=0.5, template="plotly_dark", color_discrete_sequence=px.colors.sequential.Tealgrn)
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+                fig_pie.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=0, b=0, l=0, r=0))
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+        st.markdown("---")
         
-        # FITUR BARU: K-MEANS CLUSTERING (SEGMENTASI GAYA HIDUP)
+        # 3. K-MEANS CLUSTERING
         st.subheader("🤖 AI Lifestyle Segmentation (K-Means)")
         df_peng_hari = df_bulanan[df_bulanan['Tipe']=='Pengeluaran'].groupby(df_bulanan['Tanggal'].dt.date)['Jumlah'].sum().reset_index()
-        if len(df_peng_hari) >= 5: # Butuh minimal 5 hari data untuk clustering yang baik
+        if len(df_peng_hari) >= 5: 
             X = df_peng_hari[['Jumlah']].values
             kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
             df_peng_hari['Cluster'] = kmeans.fit_predict(X)
             
-            # Labeling cluster
             pusat = kmeans.cluster_centers_.flatten()
             urutan = np.argsort(pusat)
             label_map = {urutan[0]: "Hemat", urutan[1]: "Normal", urutan[2]: "Boros/Foya-foya"}
@@ -299,8 +371,9 @@ elif menu == "📈 Analyze":
         else:
             st.info("Data harian belum cukup untuk menjalankan Algoritma K-Means (Minimal 5 hari transaksi).")
 
+
 # ==========================================
-# MENU 3: AI PREDIKSI & STATISTIKA (MONTE CARLO & ADF)
+# MENU 3: AI PREDIKSI & STATISTIKA
 # ==========================================
 elif menu == "🔮 AI Predict & Stats":
     st.title("Proyeksi & Diagnostik Lanjut")
@@ -332,7 +405,6 @@ elif menu == "🔮 AI Predict & Stats":
             except Exception as e:
                 st.error(f"Gagal kalkulasi ARIMA: {e}")
                 
-        # FITUR BARU: SIMULASI MONTE CARLO
         with tab2:
             st.subheader("🎲 Simulasi Monte Carlo (100 Skenario Masa Depan)")
             st.caption("Memproyeksikan akumulasi pengeluaran 30 hari ke depan menggunakan Random Walk probabilistik.")
@@ -346,10 +418,9 @@ elif menu == "🔮 AI Predict & Stats":
             simulasi_hasil = np.zeros((hari_ke_depan, jumlah_simulasi))
             
             for i in range(jumlah_simulasi):
-                # Menghasilkan angka acak berdasarkan mean dan deviasi standar historis (distribusi normal)
                 random_walk = np.random.normal(loc=mean_peng, scale=std_peng, size=hari_ke_depan)
-                random_walk = np.maximum(random_walk, 0) # Tidak ada pengeluaran negatif
-                simulasi_hasil[:, i] = np.cumsum(random_walk) # Dibuat kumulatif
+                random_walk = np.maximum(random_walk, 0)
+                simulasi_hasil[:, i] = np.cumsum(random_walk)
                 
             tanggal_mc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=hari_ke_depan)
             fig_mc = go.Figure()
@@ -358,9 +429,8 @@ elif menu == "🔮 AI Predict & Stats":
                 
             fig_mc.update_layout(title="Sebaran Probabilitas Pengeluaran Sebulan ke Depan", template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_mc, use_container_width=True)
-            st.info(f"💡 Interpretasi AI: Terdapat variansi ekstrem berdasarkan data Anda. Pastikan menyiapkan dana cadangan minimal **Rp {np.percentile(simulasi_hasil[-1, :], 95):,.0f}** bulan depan.")
+            st.info(f"💡 Interpretasi AI: Terdapat variansi ekstrem berdasarkan data historis Anda. Estimasi batas atas pengeluaran kumulatif bulan depan mencapai **Rp {np.percentile(simulasi_hasil[-1, :], 95):,.0f}**.")
 
-        # FITUR BARU: UJI ASUMSI KLASIK & STASIONERITAS (UNTUK MAHASISWA STATISTIKA)
         with tab3:
             st.subheader("📊 Uji Stasioneritas (Augmented Dickey-Fuller)")
             st.write("Sebagai mahasiswa Statistika, Anda tentu tahu data *Time-Series* harus stasioner sebelum dianalisis.")
@@ -376,7 +446,7 @@ elif menu == "🔮 AI Predict & Stats":
                 st.error("⚠️ p-value > 0.05: Gagal tolak H0. Data mengandung *unit root* (tidak stasioner). Model perlu nilai 'd' (differencing) yang lebih besar.")
 
 # ==========================================
-# FITUR 3: AI ADVISOR (FLOATING CHAT INTERAKTIF DI ATAS)
+# FITUR 3: AI ADVISOR (FLOATING CHAT)
 # ==========================================
 with st.popover("💬", use_container_width=False):
     st.markdown("<h4 style='text-align: center;'>AI Financial Advisor</h4>", unsafe_allow_html=True)
