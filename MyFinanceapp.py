@@ -350,7 +350,7 @@ with st.popover("💬", use_container_width=False):
     # 1. Inisialisasi memori riwayat chat
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Halo! Saya Dimas, AI Advisor kamu. Mau ngobrol apa hari ini?"}
+            {"role": "assistant", "content": "Halo! Aku Dimas, AI Advisor kamu. Mau ngobrol apa hari ini?"}
         ]
 
     # 2. Area khusus bergulir (scrolling) untuk menampilkan chat
