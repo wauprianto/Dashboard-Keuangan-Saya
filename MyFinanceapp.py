@@ -350,7 +350,7 @@ with st.popover("💬", use_container_width=False):
     # 1. Inisialisasi memori riwayat chat
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Halo! Saya AI Advisor kamu. Mau ngobrolin apa hari ini? Kalau mau cek dompet juga boleh."}
+            {"role": "assistant", "content": "Halo! Saya Dimas, AI Advisor kamu. Mau ngobrolin apa hari ini?"}
         ]
 
     # 2. Area khusus bergulir (scrolling) untuk menampilkan chat
@@ -407,7 +407,7 @@ with st.popover("💬", use_container_width=False):
             
             Aturan ketat untuk merespons:
             1. Jika hanya menyapa (misal: "Halo", "Test", "Pagi"), balas santai dan hangat. JANGAN tampilkan data keuangan!
-            2. Kamu bisa diajak ngobrol topik apa saja berdasarkan profil yang diberikan.
+            2. Kamu bisa diajak ngobrol topik apa saja dengan cerdas.
             3. HANYA JIKA ditanya spesifik tentang keuangannya (misal: "Sisa uangku?", "Analisis dompetku", "Bulan ini boros ga?"), barulah gunakan data ini untuk menganalisis:
                - Pemasukan Bulan Ini: Rp {in_bln:,.0f}
                - Pengeluaran Bulan Ini: Rp {out_bln:,.0f}
