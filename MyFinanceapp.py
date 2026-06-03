@@ -355,8 +355,8 @@ with st.popover("💬", use_container_width=False):
     
     if st.button("🧠 Buat Analisis Sekarang", use_container_width=True):
         try:
-            api_key = st.secrets["GEMINI_API_KEY"]
-            genai.configure(api_key=api_key, client_options={"client_info": None, "api_endpoint": "generativelanguage.googleapis.com"})
+            api_key_saya = st.secrets["Gemini_API_Key"]
+            genai.configure(api_key=api_key_saya, client_options={"client_info": None, "api_endpoint": "generativelanguage.googleapis.com"})
             model_ai = genai.GenerativeModel('gemini-pro') 
             
             with st.spinner("AI sedang berpikir..."):
