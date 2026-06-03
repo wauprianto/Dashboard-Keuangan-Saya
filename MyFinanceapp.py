@@ -42,7 +42,7 @@ if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
-# -- CUSTOM CSS & FLOATING CHAT BUBBLE CSS ---
+# -- CUSTOM CSS & FLOATING CHAT BUBBLE CSS DI KANAN ATAS ---
 st.markdown("""
 <style>
     div[data-testid="metric-container"] {
@@ -70,10 +70,10 @@ st.markdown("""
     .block-container {
         padding-top: 2rem;
     }
-    /* CSS UNTUK TOMBOL BOLA MELAYANG (AI CHAT) */
+    /* CSS UNTUK TOMBOL BOLA MELAYANG (AI CHAT) DI POJOK KANAN ATAS */
     div[data-testid="stPopover"]:last-of-type > button {
         position: fixed !important;
-        top: 70px !important;
+        top: 70px !important; /* Posisi di atas */
         right: 25px !important;
         width: 65px !important;
         height: 65px !important;
@@ -341,7 +341,7 @@ elif menu == "🔮 AI Predict":
             st.error(f"Gagal melakukan kalkulasi AI: {e}")
 
 # ==========================================
-# FITUR 3: AI ADVISOR (FLOATING CHAT INTERAKTIF)
+# FITUR 3: AI ADVISOR (FLOATING CHAT INTERAKTIF DI ATAS)
 # ==========================================
 with st.popover("💬", use_container_width=False):
     st.markdown("<h4 style='text-align: center;'>AI Financial Advisor</h4>", unsafe_allow_html=True)
