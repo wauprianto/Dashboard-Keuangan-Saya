@@ -107,9 +107,11 @@ if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     st.info(f"💡 **Quote Hari Ini:** *{random.choice(kumpulan_motivasi)}*")
     
-    # 1. KOMPUTASI METRIK
-    hari_ini = pd.to_datetime(datetime.today().date())
-    df_harian = df[df['Tanggal'] == hari_ini]
+    # 1. KOMPUTASI METRIK (REVISI FILTER HARIAN)
+    waktu_sekarang = pd.Timestamp.now().normalize()
+    df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
+    
+    df_harian = df[df['Tanggal_Clean'] == waktu_sekarang]
     
     pemasukan_harian = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     pengeluaran_harian = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
@@ -120,37 +122,35 @@ if menu == "🏠 Dashboard":
     
     # 2. SISTEM DETEKSI ANOMALI (Z-SCORE) - DIREVISI
     df_pengeluaran_all = df[df['Tipe'] == 'Pengeluaran']
-    if not df_pengeluaran_all.empty and pengeluaran_harian > 0: # Hanya memicu jika ada pengeluaran hari ini
-        pengeluaran_hist = df_pengeluaran_all.groupby(df_pengeluaran_all['Tanggal'].dt.date)['Jumlah'].sum()
+    if not df_pengeluaran_all.empty and pengeluaran_harian > 0: 
+        pengeluaran_hist = df_pengeluaran_all.groupby(df_pengeluaran_all['Tanggal_Clean'].dt.date)['Jumlah'].sum()
         if len(pengeluaran_hist) > 2:
             mean_pengeluaran = pengeluaran_hist.mean()
             std_pengeluaran = pengeluaran_hist.std()
             if std_pengeluaran > 0:
                 z_score = (pengeluaran_harian - mean_pengeluaran) / std_pengeluaran
-                if z_score > 2: # Threshold Anomali
+                if z_score > 2: 
                     st.error(f"⚠️ **Peringatan Anomali Statistik:** Pengeluaran hari ini (Z-Score: {z_score:.2f}) melonjak jauh di atas rata-rata kebiasaan harian Anda (Rp {mean_pengeluaran:,.0f}).")
     
     col1, col2, col3 = st.columns(3)
     col1.metric("🟢 Pemasukan Hari Ini", f"Rp {pemasukan_harian:,.0f}")
     col2.metric("🔴 Pengeluaran Hari Ini", f"Rp {pengeluaran_harian:,.0f}")
-    col3.metric("💎 Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
+    col3.metric("💎 Saldo Akhir (Aktual)", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
     
-        # 3. POP-UP KALKULATOR DENGAN TOMBOL HITUNG (MENGGUNAKAN FORM)
+    # 3. POP-UP KALKULATOR DENGAN TOMBOL HITUNG (MENGGUNAKAN FORM)
     with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
         st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
         col_target, col_budget = st.columns(2)
         
         with col_target:
             st.subheader("🎯 Kalkulator Target")
-            # Menggunakan st.form agar ada tombol khusus yang tidak langsung mereset layar
             with st.form("form_kalkulator_target", border=True):
                 nama_target = st.text_input("Nama Target", "Laptop Baru / Liburan")
                 nominal_target = st.number_input("Nominal Target (Rp)", min_value=0, value=10000000, step=500000)
                 jangka_waktu = st.number_input("Berapa Bulan?", min_value=1, value=6)
                 
-                # Ini tombolnya yang sekarang dijamin muncul
                 submitted_target = st.form_submit_button("Hitung Target", use_container_width=True)
                 
                 if submitted_target:
@@ -171,11 +171,9 @@ if menu == "🏠 Dashboard":
                     
         with col_budget:
             st.subheader("📊 Anggaran 50/30/20")
-            # Menggunakan st.form untuk sisi anggaran
             with st.form("form_kalkulator_anggaran", border=True):
                 gaji = st.number_input("Estimasi Pendapatan Bulan Ini (Rp)", min_value=0, value=5000000, step=100000)
                 
-                # Ini tombolnya yang sekarang dijamin muncul
                 submitted_anggaran = st.form_submit_button("Hitung Anggaran", use_container_width=True)
                 
                 if submitted_anggaran:
@@ -199,7 +197,6 @@ if menu == "🏠 Dashboard":
     with col_form:
         st.subheader("📝 Catat Transaksi")
         
-        # 1. Trik Pamungkas: Buat counter untuk mereset identitas widget
         if 'form_key' not in st.session_state:
             st.session_state.form_key = 0
             
@@ -211,8 +208,6 @@ if menu == "🏠 Dashboard":
         else:
             kategori = st.selectbox("Kategori", ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"])
             
-        # 2. Tempelkan angka counter ke parameter 'key'. 
-        # Jika form_key berubah, Streamlit akan membuat ulang input ini dari nol!
         jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, key=f"jumlah_{st.session_state.form_key}")
         keterangan = st.text_input("Keterangan (Opsional)", key=f"ket_{st.session_state.form_key}")
         
@@ -230,8 +225,6 @@ if menu == "🏠 Dashboard":
                 df = pd.concat([df, data_baru], ignore_index=True)
                 save_data(df)
                 
-                # 3. Tambah angka counternya saat disimpan. 
-                # Ini akan memaksa kolom input di-reset total saat rerun.
                 st.session_state.form_key += 1
                 
                 st.success("✅ Tersimpan!")
@@ -239,7 +232,7 @@ if menu == "🏠 Dashboard":
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
 
-    # 4. TABEL DENGAN FILTER DINAMIS - DIREVISI (Fungsi Pewarnaan Teks)
+    # 4. TABEL DENGAN FILTER DINAMIS - DIREVISI
     with col_tabel:
         st.subheader("📋 Riwayat Transaksi")
         if not df.empty:
@@ -247,7 +240,6 @@ if menu == "🏠 Dashboard":
             
             df_tampil = df[df['Tipe'].isin(pilihan_tipe)].sort_values(by='Tanggal', ascending=False)
             
-            # Fungsi mewarnai kolom jumlah berdasarkan tipe
             def color_jumlah(row):
                 if row['Tipe'] == 'Pemasukan':
                     return ['color: #00ffcc'] * len(row)
@@ -303,6 +295,8 @@ elif menu == "📈 Analyze":
         with col_c1:
             st.subheader("Arus Kas Harian")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
+            # Membersihkan tampilan jam di chart
+            df_tren['Tanggal'] = df_tren['Tanggal'].dt.strftime('%Y-%m-%d')
             fig_bar = px.bar(df_tren, x='Tanggal', y='Jumlah', color='Tipe', barmode='group',
                              color_discrete_map={"Pemasukan": "#00ffcc", "Pengeluaran": "#ff4d4d"},
                              template="plotly_dark")
@@ -337,13 +331,11 @@ elif menu == "🔮 AI Predict":
         df_ts = df_ts.set_index('Tanggal').asfreq('D', fill_value=0)
         
         try:
-            # Fit Model ARIMA
             model = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
             model_fit = model.fit()
             
             langkah_prediksi = st.slider("Horizon Prediksi (Hari ke depan):", 3, 30, 7)
             
-            # Forecast dengan Confidence Interval (Interval Kepercayaan)
             prediksi_obj = model_fit.get_forecast(steps=langkah_prediksi)
             forecast_mean = prediksi_obj.predicted_mean.apply(lambda x: max(0, x))
             conf_int = prediksi_obj.conf_int()
@@ -352,18 +344,12 @@ elif menu == "🔮 AI Predict":
             
             tanggal_forecast = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
             
-            # Visualisasi Plotly Advanced
             fig_forecast = go.Figure()
             hist_plot = df_ts.tail(21)
             
-            # Area Historis
             fig_forecast.add_trace(go.Scatter(x=hist_plot.index, y=hist_plot['Jumlah'], mode='lines+markers', name='Data Aktual', line=dict(color='#89b4fa', width=3)))
-            
-            # Upper Bound (Batas Atas)
             fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=upper_bound, mode='lines', line=dict(width=0), showlegend=False))
-            # Lower Bound (Batas Bawah) dengan fill
             fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=lower_bound, mode='lines', fill='tonexty', fillcolor='rgba(243, 139, 168, 0.2)', line=dict(width=0), name='95% Confidence Interval'))
-            # Garis Prediksi Tengah
             fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=forecast_mean, mode='lines+markers', name='Proyeksi Rata-rata', line=dict(color='#f38ba8', dash='dot', width=3)))
             
             fig_forecast.update_layout(
