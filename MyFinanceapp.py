@@ -25,11 +25,18 @@ if not st.session_state['logged_in']:
         with st.container(border=True):
             password_input = st.text_input("Masukkan PIN / Password:", type="password")
             if st.button("Masuk", use_container_width=True):
-                if password_input == "220303": 
-                    st.session_state['logged_in'] = True
-                    st.rerun()
-                else:
-                    st.error("❌ Password salah!")
+                try:
+                    # Mengambil password dari rahasia (secrets)
+                    kunci_rahasia = st.secrets["APP_PASSWORD"]
+                    
+                    # str() digunakan untuk memastikan input teks dan angka di secrets cocok
+                    if password_input == str(kunci_rahasia): 
+                        st.session_state['logged_in'] = True
+                        st.rerun()
+                    else:
+                        st.error("❌ Password salah!")
+                except KeyError:
+                    st.error("⚠️ Sistem terkunci: 'APP_PASSWORD' belum diatur di Streamlit Secrets!")
     st.stop() 
 
 if st.sidebar.button("🚪 Logout"):
