@@ -173,7 +173,7 @@ if menu == "🏠 Dashboard":
     
     with col_gauge:
         # FITUR 6: SPIDOMETER BURN RATE
-        st.subheader("🏎️ Burn Rate Meter")
+        st.subheader("Burn Rate Meter")
         batas_aman = 150000 
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number",
@@ -200,7 +200,7 @@ if menu == "🏠 Dashboard":
                     try:
                         api_key = st.secrets["Gemini_API_Key"]
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        model = genai.GenerativeModel('gemini-3.1-flash-lite')
                         prompt = f"""Ekstrak teks ini jadi format JSON. Kunci: 'Tipe' (Pemasukan/Pengeluaran), 'Kategori' (Makan/Minum, Transportasi, Tagihan, Belanja, Hiburan, Gaji, Bonus, Lain-lain), 'Jumlah' (angka bulat), 'Keterangan' (string). Teks: "{magic_teks}". Hanya output JSON."""
                         respon = model.generate_content(prompt)
                         hasil = json.loads(respon.text.strip('`json\n '))
@@ -423,7 +423,7 @@ with st.popover("💬", use_container_width=False):
         st.session_state.chat_history.append({"role": "user", "content": user_msg})
         try:
             genai.configure(api_key=st.secrets["Gemini_API_Key"])
-            model_ai = genai.GenerativeModel('gemini-1.5-flash')
+            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
             chat_session = model_ai.start_chat(history=[{"role": "model" if c["role"] == "assistant" else "user", "parts": [c["content"]]} for c in st.session_state.chat_history[:-1]])
             response = chat_session.send_message(f"Instruksi: Balas santai. \nPesan: {user_msg}")
             st.session_state.chat_history.append({"role": "assistant", "content": response.text})
