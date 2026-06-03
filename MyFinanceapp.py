@@ -73,8 +73,8 @@ st.markdown("""
     /* CSS UNTUK TOMBOL BOLA MELAYANG (AI CHAT) */
     div[data-testid="stPopover"]:last-of-type > button {
         position: fixed !important;
-        bottom: 30px !important;
-        right: 30px !important;
+        top: 70px !important;
+        right: 25px !important;
         width: 65px !important;
         height: 65px !important;
         border-radius: 50% !important;
