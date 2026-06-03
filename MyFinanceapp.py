@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
-import random
+import tempfile
 import requests
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.stattools import adfuller
@@ -13,6 +13,13 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
 import google.generativeai as genai
 import warnings
+
+# Coba import FPDF untuk cetak Laporan, jika belum ada, beri peringatan
+try:
+    from fpdf import FPDF
+    PDF_READY = True
+except ImportError:
+    PDF_READY = False
 
 warnings.filterwarnings('ignore')
 
@@ -45,34 +52,32 @@ if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
-# -- CUSTOM CSS & FLOATING CHAT BUBBLE CSS DI KANAN ATAS ---
+# -- CUSTOM CSS (ADAPTIVE UNTUK LIGHT/DARK MODE) ---
 st.markdown("""
 <style>
+    /* Menggunakan variabel tema Streamlit agar warna adaptif di Light/Dark mode */
     div[data-testid="metric-container"] {
-        background: linear-gradient(145deg, #1e1e2e, #2b2b40);
+        background-color: var(--secondary-background-color);
         border-left: 5px solid #00ffcc;
         padding: 15px 20px;
         border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     div[data-testid="metric-container"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0, 255, 204, 0.2);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 255, 204, 0.2);
     }
     div[data-testid="stForm"] {
-        background-color: rgba(30, 30, 46, 0.5);
-        border: 1px solid #45475a;
+        background-color: var(--secondary-background-color);
+        border: 1px solid var(--border-color);
         border-radius: 15px;
         padding: 25px;
-    }
-    h1, h2, h3 {
-        font-family: 'Trebuchet MS', sans-serif;
-        color: #89b4fa !important;
     }
     .block-container {
         padding-top: 2rem;
     }
+    /* Bola Melayang AI */
     div[data-testid="stPopover"]:last-of-type > button {
         position: fixed !important;
         top: 70px !important;
@@ -84,7 +89,7 @@ st.markdown("""
         color: white !important;
         font-size: 30px !important;
         z-index: 99999 !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
         padding: 0 !important;
         border: none !important;
         transition: transform 0.3s !important;
@@ -139,13 +144,23 @@ st.sidebar.markdown("---")
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 AI Predict & Stats"])
 st.sidebar.markdown("---")
 
-# FITUR BARU: LIVE API CRYPTO TRACKER
+# FITUR KOREKSI: LIVE API CRYPTO TRACKER (SEKARANG BISA DI-KLIK)
 st.sidebar.caption("🌍 Live Global Market")
 try:
     btc_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3)
     if btc_res.status_code == 200:
         btc_price = float(btc_res.json()['price'])
-        st.sidebar.metric("Bitcoin (BTC)", f"${btc_price:,.2f}")
+        # Mengubahnya menjadi tombol hyperlink yang menarik
+        st.sidebar.markdown(
+            f"""
+            <a href="https://www.binance.com/en/trade/BTC_USDT" target="_blank" style="text-decoration: none;">
+                <div style="background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid #f3ba2f; text-align: center; transition: 0.3s;">
+                    <span style="color: #f3ba2f; font-weight: bold; font-size: 16px;">₿ Bitcoin (BTC)</span><br>
+                    <span style="color: var(--text-color); font-size: 18px;">${btc_price:,.2f}</span>
+                </div>
+            </a>
+            """, unsafe_allow_html=True
+        )
 except:
     st.sidebar.caption("Gagal memuat API Pasar.")
 
@@ -159,7 +174,6 @@ st.sidebar.caption("Prianto Sanema Wau")
 if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     
-    # KOMPUTASI METRIK (DENGAN DELTA)
     waktu_sekarang = pd.Timestamp.now().normalize()
     kemarin = waktu_sekarang - pd.Timedelta(days=1)
     df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
@@ -183,7 +197,7 @@ if menu == "🏠 Dashboard":
     
     st.markdown("---")
     
-    # POP-UP KALKULATOR (DIKEMBALIKAN)
+    # POP-UP KALKULATOR 
     with st.popover("🧮 Buka Kalkulator Finansial", use_container_width=True):
         st.markdown("<h3 style='text-align: center;'>Simulasi Anggaran & Tabungan</h3>", unsafe_allow_html=True)
         col_target, col_budget = st.columns(2)
@@ -213,7 +227,7 @@ if menu == "🏠 Dashboard":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    col_gauge, col_form, col_tabel = st.columns([1, 1, 1.5]) # DIBAGI 3 KOLOM SEKARANG
+    col_gauge, col_form, col_tabel = st.columns([1, 1, 1.5]) 
     
     with col_gauge:
         st.subheader("🏎️ Burn Rate")
@@ -221,20 +235,21 @@ if menu == "🏠 Dashboard":
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = out_hari_ini,
-            title = {'text': "Kecepatan Pengeluaran", 'font': {'size': 14}},
+            title = {'text': "Pengeluaran Hari Ini", 'font': {'size': 14}},
             domain = {'x': [0, 1], 'y': [0, 1]},
             gauge = {
                 'axis': {'range': [None, batas_aman * 2]},
                 'bar': {'color': "#00ffcc"},
                 'steps' : [
-                    {'range': [0, batas_aman], 'color': "rgba(166, 227, 161, 0.3)"},
-                    {'range': [batas_aman, batas_aman*2], 'color': "rgba(243, 139, 168, 0.3)"}],
+                    {'range': [0, batas_aman], 'color': "rgba(166, 227, 161, 0.4)"},
+                    {'range': [batas_aman, batas_aman*2], 'color': "rgba(243, 139, 168, 0.4)"}],
                 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': batas_aman}
             }
         ))
-        fig_gauge.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0), template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_gauge, use_container_width=True)
-        st.caption(f"*Batas merah: Rp {batas_aman:,.0f}/hari.*")
+        # Theme Streamlit untuk menyesuaikan Dark/Light otomatis
+        fig_gauge.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0))
+        st.plotly_chart(fig_gauge, use_container_width=True, theme="streamlit")
+        st.caption(f"*Batas harian: Rp {batas_aman:,.0f}*")
 
     with col_form:
         st.subheader("📝 Catat Transaksi")
@@ -263,7 +278,7 @@ if menu == "🏠 Dashboard":
             else:
                 st.error("⚠️ Jumlah tidak boleh nol.")
 
-    # TABEL DENGAN FILTER DINAMIS (DIKEMBALIKAN)
+    # TABEL RIWAYAT TRANSAKSI 
     with col_tabel:
         st.subheader("📋 Riwayat Transaksi")
         if not df.empty:
@@ -290,25 +305,59 @@ elif menu == "📈 Analyze":
         df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
         list_bulan_str = [str(b) for b in sorted(df['Bulan_Tahun'].unique(), reverse=True)]
         
-        col_opt1, col_opt2 = st.columns([1, 3])
+        col_opt1, col_opt2, col_opt3 = st.columns([1, 1.5, 1.5])
         with col_opt1:
             bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str)
         df_bulanan = df[df['Bulan_Tahun'] == bulan_pilihan]
         
-        # TOMBOL DOWNLOAD CSV (DIKEMBALIKAN)
+        # HITUNGAN UNTUK PDF DAN GRAFIK
+        in_bln = df_bulanan[df_bulanan['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+        out_bln = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+        sisa_saldo = in_bln - out_bln
+        
         with col_opt2:
             st.markdown("<br>", unsafe_allow_html=True)
             csv = df_bulanan.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download Laporan (CSV)", data=csv, file_name=f"Laporan_{bulan_pilihan}.csv", mime="text/csv")
+            st.download_button("📥 Download Data (CSV)", data=csv, file_name=f"Data_{bulan_pilihan}.csv", mime="text/csv", use_container_width=True)
             
+        # FITUR KOREKSI: TOMBOL EXPORT PDF
+        with col_opt3:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if PDF_READY:
+                # Membuat PDF sementara
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(200, 10, txt=f"Laporan Arus Kas - {bulan_pilihan}", ln=True, align='C')
+                pdf.set_font("Arial", size=12)
+                pdf.ln(10)
+                pdf.cell(200, 8, txt=f"Total Pemasukan: Rp {in_bln:,.0f}", ln=True)
+                pdf.cell(200, 8, txt=f"Total Pengeluaran: Rp {out_bln:,.0f}", ln=True)
+                pdf.cell(200, 8, txt=f"Sisa Saldo: Rp {sisa_saldo:,.0f}", ln=True)
+                pdf.ln(10)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(200, 8, txt="Rincian Pengeluaran:", ln=True)
+                pdf.set_font("Arial", size=12)
+                
+                df_keluar_pdf = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
+                for index, row in df_keluar_pdf.iterrows():
+                    pdf.cell(200, 8, txt=f"- {row['Kategori']}: Rp {row['Jumlah']:,.0f}", ln=True)
+                
+                # Simpan ke memori untuk di-download
+                tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                pdf.output(tmp_file.name)
+                with open(tmp_file.name, "rb") as f:
+                    pdf_bytes = f.read()
+                
+                st.download_button("📄 Ekspor Laporan (PDF)", data=pdf_bytes, file_name=f"Laporan_{bulan_pilihan}.pdf", mime="application/pdf", use_container_width=True)
+            else:
+                st.error("Tambahkan `fpdf` di requirements.txt untuk fitur cetak PDF.")
+
         st.markdown("---")
         
         # 1. PETA ARUS KAS (SANKEY)
         st.subheader("🌊 Peta Arus Kas (Sankey Diagram)")
-        total_masuk = df_bulanan[df_bulanan['Tipe'] == 'Pemasukan']['Jumlah'].sum()
         df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
-        total_keluar = df_keluar['Jumlah'].sum()
-        sisa_saldo = total_masuk - total_keluar
         
         label_node = ["Pemasukan Bulanan"] + df_keluar['Kategori'].tolist() + ["Sisa Saldo Tersimpan"]
         sumber = [0] * (len(df_keluar) + 1)
@@ -318,36 +367,35 @@ elif menu == "📈 Analyze":
         if sisa_saldo < 0:
             label_node.pop(); sumber.pop(); tujuan.pop(); nilai.pop()
 
-        if total_masuk > 0 or total_keluar > 0:
+        if in_bln > 0 or out_bln > 0:
             fig_sankey = go.Figure(data=[go.Sankey(
-                node = dict(pad = 20, thickness = 25, line = dict(color = "#1e1e2e", width = 0.5), label = label_node, color = ["#00ffcc"] + ["#ff4d4d"] * len(df_keluar) + ["#a6e3a1"]),
-                link = dict(source = sumber, target = tujuan, value = nilai, color = "rgba(255, 255, 255, 0.1)")
+                node = dict(pad = 20, thickness = 25, line = dict(color = "black", width = 0.5), label = label_node, color = ["#00ffcc"] + ["#ff4d4d"] * len(df_keluar) + ["#a6e3a1"]),
+                link = dict(source = sumber, target = tujuan, value = nilai, color = "rgba(128, 128, 128, 0.2)") # Warna netral untuk light/dark mode
             )])
-            fig_sankey.update_layout(font_size=13, template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=20, b=20, l=0, r=0), height=350)
-            st.plotly_chart(fig_sankey, use_container_width=True)
+            fig_sankey.update_layout(font_size=13, margin=dict(t=20, b=20, l=0, r=0), height=350)
+            st.plotly_chart(fig_sankey, use_container_width=True, theme="streamlit")
         else:
             st.info("Belum ada aliran kas bulan ini.")
             
         st.markdown("---")
 
-        # 2. GRAFIK BAR & PIE (DIKEMBALIKAN)
+        # 2. GRAFIK BAR & PIE (KEMBALI HADIR DAN ADAPTIF TEMA)
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.subheader("📊 Arus Kas Harian")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
             df_tren['Tanggal'] = df_tren['Tanggal'].dt.strftime('%Y-%m-%d')
-            fig_bar = px.bar(df_tren, x='Tanggal', y='Jumlah', color='Tipe', barmode='group', color_discrete_map={"Pemasukan": "#00ffcc", "Pengeluaran": "#ff4d4d"}, template="plotly_dark")
-            fig_bar.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_bar, use_container_width=True)
+            fig_bar = px.bar(df_tren, x='Tanggal', y='Jumlah', color='Tipe', barmode='group', color_discrete_map={"Pemasukan": "#00ffcc", "Pengeluaran": "#ff4d4d"})
+            st.plotly_chart(fig_bar, use_container_width=True, theme="streamlit")
             
         with col_c2:
             st.subheader("🍕 Distribusi Pengeluaran")
             df_pengeluaran = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']
             if not df_pengeluaran.empty:
-                fig_pie = px.pie(df_pengeluaran, values='Jumlah', names='Kategori', hole=0.5, template="plotly_dark", color_discrete_sequence=px.colors.sequential.Tealgrn)
+                fig_pie = px.pie(df_pengeluaran, values='Jumlah', names='Kategori', hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn)
                 fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-                fig_pie.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=0, b=0, l=0, r=0))
-                st.plotly_chart(fig_pie, use_container_width=True)
+                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+                st.plotly_chart(fig_pie, use_container_width=True, theme="streamlit")
 
         st.markdown("---")
         
@@ -364,10 +412,9 @@ elif menu == "📈 Analyze":
             label_map = {urutan[0]: "Hemat", urutan[1]: "Normal", urutan[2]: "Boros/Foya-foya"}
             df_peng_hari['Gaya Hidup'] = df_peng_hari['Cluster'].map(label_map)
             
-            fig_cluster = px.scatter(df_peng_hari, x='Tanggal', y='Jumlah', color='Gaya Hidup', size='Jumlah', color_discrete_map={"Hemat":"#a6e3a1", "Normal":"#89b4fa", "Boros/Foya-foya":"#f38ba8"}, template="plotly_dark")
-            fig_cluster.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_cluster, use_container_width=True)
-            st.caption("AI mengelompokkan kebiasaan harian Anda ke dalam 3 persona. Perhatikan kapan Anda berada di zona 'Boros'.")
+            fig_cluster = px.scatter(df_peng_hari, x='Tanggal', y='Jumlah', color='Gaya Hidup', size='Jumlah', color_discrete_map={"Hemat":"#a6e3a1", "Normal":"#89b4fa", "Boros/Foya-foya":"#f38ba8"})
+            st.plotly_chart(fig_cluster, use_container_width=True, theme="streamlit")
+            st.caption("AI mengelompokkan kebiasaan harian Anda. Perhatikan kapan Anda berada di zona 'Boros'.")
         else:
             st.info("Data harian belum cukup untuk menjalankan Algoritma K-Means (Minimal 5 hari transaksi).")
 
@@ -400,8 +447,7 @@ elif menu == "🔮 AI Predict & Stats":
                 fig_forecast = go.Figure()
                 fig_forecast.add_trace(go.Scatter(x=df_ts.tail(21).index, y=df_ts.tail(21)['Jumlah'], mode='lines+markers', name='Data Aktual', line=dict(color='#89b4fa', width=3)))
                 fig_forecast.add_trace(go.Scatter(x=tanggal_forecast, y=forecast_mean, mode='lines+markers', name='Proyeksi Rata-rata', line=dict(color='#f38ba8', dash='dot', width=3)))
-                fig_forecast.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_forecast, use_container_width=True)
+                st.plotly_chart(fig_forecast, use_container_width=True, theme="streamlit")
             except Exception as e:
                 st.error(f"Gagal kalkulasi ARIMA: {e}")
                 
@@ -425,10 +471,11 @@ elif menu == "🔮 AI Predict & Stats":
             tanggal_mc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=hari_ke_depan)
             fig_mc = go.Figure()
             for i in range(jumlah_simulasi):
-                fig_mc.add_trace(go.Scatter(x=tanggal_mc, y=simulasi_hasil[:, i], mode='lines', line=dict(color='rgba(137, 180, 250, 0.05)'), showlegend=False))
+                # Warna garis diset netral agar terlihat baik di dark/light mode
+                fig_mc.add_trace(go.Scatter(x=tanggal_mc, y=simulasi_hasil[:, i], mode='lines', line=dict(color='rgba(137, 180, 250, 0.1)'), showlegend=False))
                 
-            fig_mc.update_layout(title="Sebaran Probabilitas Pengeluaran Sebulan ke Depan", template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_mc, use_container_width=True)
+            fig_mc.update_layout(title="Sebaran Probabilitas Pengeluaran Sebulan ke Depan")
+            st.plotly_chart(fig_mc, use_container_width=True, theme="streamlit")
             st.info(f"💡 Interpretasi AI: Terdapat variansi ekstrem berdasarkan data historis Anda. Estimasi batas atas pengeluaran kumulatif bulan depan mencapai **Rp {np.percentile(simulasi_hasil[-1, :], 95):,.0f}**.")
 
         with tab3:
