@@ -73,7 +73,7 @@ st.markdown("""
     /* CSS UNTUK TOMBOL BOLA MELAYANG (AI CHAT) DI POJOK KANAN ATAS */
     div[data-testid="stPopover"]:last-of-type > button {
         position: fixed !important;
-        top: 70px !important; /* Posisi di atas */
+        top: 70px !important;
         right: 25px !important;
         width: 65px !important;
         height: 65px !important;
@@ -350,7 +350,7 @@ with st.popover("💬", use_container_width=False):
     # 1. Inisialisasi memori riwayat chat
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Halo Prianto! Saya AI Advisor kamu. Mau ngobrolin apa hari ini? Kalau mau cek dompet juga boleh."}
+            {"role": "assistant", "content": "Halo! Saya AI Advisor kamu. Mau ngobrolin apa hari ini? Kalau mau cek dompet juga boleh."}
         ]
 
     # 2. Area khusus bergulir (scrolling) untuk menampilkan chat
@@ -379,6 +379,10 @@ with st.popover("💬", use_container_width=False):
             genai.configure(api_key=api_key)
             model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
             
+            # --- MENGAMBIL BIO PRIBADI DARI SECRETS ---
+            # Jika USER_BIO belum Anda buat di Secrets, maka akan pakai default "Pengguna aplikasi ini"
+            profil_pribadi = st.secrets.get("USER_BIO", "Pengguna aplikasi ini")
+            
             # Hitung data riil bulan ini untuk disuapkan ke otak AI
             bulan_ini = pd.Timestamp.now().to_period('M')
             df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
@@ -397,18 +401,20 @@ with st.popover("💬", use_container_width=False):
             # Mulai sesi obrolan terstruktur dengan API
             chat_session = model_ai.start_chat(history=formatted_history)
             
-            # --- INSTRUKSI KEPRIBADIAN AI ---
-            instruksi_sistem = f"""[INSTRUKSI SISTEM: Kamu adalah asisten AI finansial dan teman ngobrol yang asik. Pengguna aplikasi ini bernama Prian (mahasiswa Statistika, suka Python/SQL/R, hobi lari, main game, nonton anime, dan sering naik kereta untuk bekerja di warehouse).
+            # --- INSTRUKSI KEPRIBADIAN AI (MENGGUNAKAN PROFIL DARI SECRETS) ---
+            instruksi_sistem = f"""[INSTRUKSI SISTEM: Kamu adalah asisten AI finansial dan teman ngobrol yang asik. 
+            Profil Pengguna Kamu: {profil_pribadi}
+            
             Aturan ketat untuk merespons:
-            1. Jika Prian hanya menyapa (misal: "Halo", "Test", "Pagi"), balas santai dan hangat. JANGAN tampilkan data keuangan!
-            2. Kamu bisa diajak ngobrol topik apa saja (coding, statistik, anime, game, rutinitas kereta, dll).
+            1. Jika hanya menyapa (misal: "Halo", "Test", "Pagi"), balas santai dan hangat. JANGAN tampilkan data keuangan!
+            2. Kamu bisa diajak ngobrol topik apa saja berdasarkan profil yang diberikan.
             3. HANYA JIKA ditanya spesifik tentang keuangannya (misal: "Sisa uangku?", "Analisis dompetku", "Bulan ini boros ga?"), barulah gunakan data ini untuk menganalisis:
                - Pemasukan Bulan Ini: Rp {in_bln:,.0f}
                - Pengeluaran Bulan Ini: Rp {out_bln:,.0f}
                - Sisa Saldo: Rp {sisa_bln:,.0f}
             ]
             
-            Pesan Prian: {user_msg}"""
+            Pesan Pengguna: {user_msg}"""
             
             # Kirim pertanyaan dan instruksi, lalu simpan balasan AI
             response = chat_session.send_message(instruksi_sistem)
