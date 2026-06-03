@@ -356,7 +356,7 @@ with st.popover("💬", use_container_width=False):
     if st.button("🧠 Buat Analisis Sekarang", use_container_width=True):
         try:
             # 1. Ambil API Key dari Streamlit Secrets
-            api_key = st.secrets["GEMINI_API_KEY"]
+            api_key = st.secrets["Gemini_API_Key"]
             
             # 2. KONFIGURASI BERSIH: Tanpa menggunakan client_options sama sekali!
             genai.configure(api_key=api_key)
