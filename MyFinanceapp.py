@@ -482,7 +482,20 @@ with st.popover("💬", use_container_width=False):
     user_msg = st.chat_input("Ketik pesan...")
 
     if user_msg:
-        # Simpan pesan user
+        # 1. Hitung ulang data finansial secara real-time berdasarkan zona waktu WIB
+        waktu_wib_chat = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
+        bulan_ini_chat = waktu_wib_chat.to_period('M')
+        
+        df_chat = df.copy()
+        df_chat['Bulan_Tahun'] = df_chat['Tanggal'].dt.to_period('M')
+        df_bulan_ini = df_chat[df_chat['Bulan_Tahun'] == bulan_ini_chat]
+        
+        in_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+        out_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+        sisa_bln = in_bln - out_bln
+        saldo_total = df_chat[df_chat['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df_chat[df_chat['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+        
+        # Simpan pesan user ke history memori
         user_entry = {"role": "user", "content": user_msg}
         
         import PIL.Image
@@ -493,7 +506,7 @@ with st.popover("💬", use_container_width=False):
             
         st.session_state.chat_history.append(user_entry)
         
-        # Tampilkan langsung pesan user di layar
+        # Render langsung pesan user di layar agar responsif
         with chat_container:
             with st.chat_message("user"):
                 st.markdown(user_msg)
@@ -504,8 +517,26 @@ with st.popover("💬", use_container_width=False):
             genai.configure(api_key=st.secrets["Gemini_API_Key"])
             model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
             
-            # Rakit memori chat untuk dikirim ke API
-            prompt_parts = [f"Instruksi: Balas santai. \nPesan: {user_msg}"]
+            profil_pribadi = st.secrets.get("USER_BIO", "Pengguna aplikasi ini")
+            
+            # 2. Menyusun Instruksi Sistem Berisi Suapan Data Finansial Terkini
+            instruksi_sistem = f"""Kamu adalah Dimas, asisten AI finansial dan teman ngobrol yang asik.
+            Profil Pengguna: {profil_pribadi}
+            
+            DATA FINANSIAL REAL-TIME DASHBOARD BULAN INI ({bulan_ini_chat}):
+            - Total Pemasukan Bulan Ini: Rp {in_bln:,.0f}
+            - Total Pengeluaran Bulan Ini: Rp {out_bln:,.0f}
+            - Sisa Saldo Bulan Ini: Rp {sisa_bln:,.0f}
+            - Saldo Akhir Aktual (Keseluruhan): Rp {saldo_total:,.0f}
+            
+            Aturan Ketat Merespons:
+            1. Jika user hanya menyapa (seperti 'Halo', 'Pagi', 'Test'), balas dengan santai dan akrab TANPA menjabarkan angka-angka keuangan di atas.
+            2. Jika user hanya bertanya tentang keuangannya, sisa saldo, kondisi dompet, pengeluaran, atau analisis boros/tidaknya, gunakan data angka riil di atas untuk memberikan jawaban analitis yang cerdas, solutif, dan objektif.
+            3. jika user bertanya dengan pertanyaan diluar keuangan tolong dijawab sesuai konteks pertanyaannya dengan cermat.
+            """
+            
+            # Merakit bagian prompt teks dan gambar secara runtun
+            prompt_parts = [instruksi_sistem, f"Pesan Pengguna: {user_msg}"]
             if img_obj:
                 prompt_parts.append(img_obj)
                 
@@ -514,4 +545,4 @@ with st.popover("💬", use_container_width=False):
             st.session_state.chat_history.append({"role": "assistant", "content": response.text})
             st.rerun()
         except Exception as e:
-            st.error("Gagal memuat AI. Pastikan API valid.")
+            st.error(f"Gagal memuat AI. Pastikan API valid. Error: {e}")
