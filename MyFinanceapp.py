@@ -210,8 +210,8 @@ if menu == "🏠 Dashboard":
                 try:
                     import PIL.Image
                     img_struk = PIL.Image.open(file_struk)
-                    api_key = st.secrets["Gemini_API_Key"]
-                    genai.configure(api_key=api_key)
+                    api_key_saya = st.secrets["Gemini_API_Key"]
+                    genai.configure(api_key=api_key_saya)
                     model_vision = genai.GenerativeModel('gemini-3.1-flash-lite')
                     
                     prompt_vision = """
@@ -237,8 +237,8 @@ if menu == "🏠 Dashboard":
             if st.form_submit_button("Catat Otomatis (AI)"):
                 if magic_teks:
                     try:
-                        api_key = st.secrets["Gemini_API_Key"]
-                        genai.configure(api_key=api_key)
+                        api_key_saya = st.secrets["Gemini_API_Key"]
+                        genai.configure(api_key=api_key_saya)
                         model = genai.GenerativeModel('gemini-3.1-flash-lite')
                         prompt = f"""Ekstrak teks ini jadi format JSON. Kunci: 'Tipe' (Pemasukan/Pengeluaran), 'Kategori' (Makan/Minum, Transportasi, Tagihan, Belanja, Hiburan, Gaji, Bonus, Lain-lain), 'Jumlah' (angka bulat), 'Keterangan' (string). Teks: "{magic_teks}". Hanya output JSON."""
                         respon = model.generate_content(prompt)
@@ -455,7 +455,6 @@ elif menu == "🔮 Advanced Stats & Predict":
             if hasil[1] < 0.05: st.success("Data stasioner (Tolak H0).")
             else: st.error("Data tidak stasioner. Lakukan differencing.")
 
-
 # ==========================================
 # FITUR CHAT BUBBLE AI
 # ==========================================
@@ -466,21 +465,54 @@ with st.popover("💬", use_container_width=False):
 
     with st.container(height=300):
         for msg in st.session_state.chat_history:
-            with st.chat_message(msg["role"]): st.markdown(msg["content"])
+            with st.chat_message(msg["role"]): 
+                st.markdown(msg["content"])
+                if "image" in msg:
+                    st.image(msg["image"], width=200)
 
-    with st.form("chat_form", clear_on_submit=True):
-        cols = st.columns([4, 1])
-        with cols[0]: user_msg = st.text_input("Pesan:", label_visibility="collapsed")
-        with cols[1]: submit_chat = st.form_submit_button("Kirim")
+    # Form Chat dengan Layout Modern (Kamera & Pesawat Kertas)
+    with st.form("chat_form", clear_on_submit=True, border=False):
+        col_img, col_txt, col_btn = st.columns([1.5, 6, 1.5])
+        
+        with col_img:
+            # Tombol Upload Gambar
+            uploaded_img = st.file_uploader("", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
+            
+        with col_txt:
+            # Kolom Ketik Pesan
+            user_msg = st.text_input("Pesan:", label_visibility="collapsed", placeholder="Ketik pesan...")
+            
+        with col_btn:
+            # Tombol Kirim (Pesawat Kertas)
+            st.markdown("<br>", unsafe_allow_html=True) # Spacer agar sejajar
+            submit_chat = st.form_submit_button("🚀")
 
-    if submit_chat and user_msg:
-        st.session_state.chat_history.append({"role": "user", "content": user_msg})
+    if submit_chat and (user_msg or uploaded_img):
+        # Menyimpan input user ke riwayat
+        user_entry = {"role": "user", "content": user_msg if user_msg else "Mengirim gambar..."}
+        
+        import PIL.Image
+        img_obj = None
+        if uploaded_img:
+            img_obj = PIL.Image.open(uploaded_img)
+            user_entry["image"] = img_obj # Simpan gambar ke memori UI
+            
+        st.session_state.chat_history.append(user_entry)
+        
         try:
-            genai.configure(api_key=st.secrets["Gemini_API_Key"])
-            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
-            chat_session = model_ai.start_chat(history=[{"role": "model" if c["role"] == "assistant" else "user", "parts": [c["content"]]} for c in st.session_state.chat_history[:-1]])
-            response = chat_session.send_message(f"Instruksi: Balas santai. \nPesan: {user_msg}")
+            genai.configure(api_key_saya=st.secrets["Gemini_API_Key"])
+            # Menggunakan model Gemini 3.1 Flash Lite sesuai sistem Anda
+            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite') 
+            
+            # Merakit prompt berdasarkan ada/tidaknya gambar
+            prompt_parts = [f"Instruksi: Balas santai. \nPesan: {user_msg}"]
+            if img_obj:
+                prompt_parts.append(img_obj)
+            
+            response = model_ai.generate_content(prompt_parts)
+            
             st.session_state.chat_history.append({"role": "assistant", "content": response.text})
             st.rerun()
         except Exception as e:
-            st.error("Gagal memuat AI.")
+            st.error(f"Gagal memuat AI. Pesan error: {e}")
+
