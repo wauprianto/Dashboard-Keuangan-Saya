@@ -413,7 +413,7 @@ elif menu == "🔮 Advanced Stats & Predict":
     else:
         df_ts = df_pengeluaran.groupby('Tanggal')['Jumlah'].sum().reset_index().set_index('Tanggal').asfreq('D', fill_value=0)
         
-        tab1, tab2, tab3 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
         
         with tab1:
             st.subheader("Proyeksi Tren (ARIMA)")
@@ -430,8 +430,87 @@ elif menu == "🔮 Advanced Stats & Predict":
                 st.plotly_chart(fig_fc, use_container_width=True, theme="streamlit")
             except:
                 st.error("Model ARIMA gagal berkonvergensi.")
-                
+
         with tab2:
+            st.subheader("🧠 Model Hybrid ARIMA-LSTM")
+            st.write("Menggabungkan kemampuan prediksi linear (ARIMA) dengan pengenalan pola non-linear (LSTM) pada residual data.")
+            
+            if st.button("🚀 Jalankan Kalkulasi Hybrid (Komputasi Berat)", use_container_width=True):
+                with st.spinner("Memuat TensorFlow dan memproses Jaringan Saraf Tiruan..."):
+                    try:
+                        from tensorflow.keras.models import Sequential
+                        from tensorflow.keras.layers import LSTM, Dense
+                        from sklearn.preprocessing import MinMaxScaler
+                        
+                        # 1. FIT ARIMA
+                        model_arima = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
+                        model_arima_fit = model_arima.fit()
+                        
+                        # 2. EKSTRAKSI RESIDUAL (Error dari ARIMA)
+                        residuals = model_arima_fit.resid.values.reshape(-1, 1)
+                        
+                        # 3. PRE-PROCESSING DATA UNTUK LSTM
+                        scaler = MinMaxScaler(feature_range=(-1, 1))
+                        resid_scaled = scaler.fit_transform(residuals)
+                        
+                        # Membuat sekuens waktu (Lag = 3 hari)
+                        def create_dataset(dataset, look_back=3):
+                            X, Y = [], []
+                            for i in range(len(dataset)-look_back-1):
+                                a = dataset[i:(i+look_back), 0]
+                                X.append(a)
+                                Y.append(dataset[i + look_back, 0])
+                            return np.array(X), np.array(Y)
+                            
+                        look_back = 3
+                        X, Y = create_dataset(resid_scaled, look_back)
+                        
+                        if len(X) == 0:
+                            st.error("Data historis terlalu sedikit untuk melatih LSTM. Tambahkan lebih banyak data pengeluaran.")
+                        else:
+                            # Reshape format LSTM: [samples, time steps, features]
+                            X = np.reshape(X, (X.shape[0], 1, X.shape[1]))
+                            
+                            # 4. ARSITEKTUR & PELATIHAN LSTM
+                            lstm_model = Sequential()
+                            lstm_model.add(LSTM(50, input_shape=(1, look_back)))
+                            lstm_model.add(Dense(1))
+                            lstm_model.compile(loss='mean_squared_error', optimizer='adam')
+                            lstm_model.fit(X, Y, epochs=20, batch_size=1, verbose=0)
+                            
+                            # 5. PREDIKSI 7 HARI KE DEPAN
+                            langkah_prediksi = 7
+                            arima_forecast = model_arima_fit.forecast(steps=langkah_prediksi).values
+                            
+                            input_seq = resid_scaled[-look_back:].reshape(1, 1, look_back)
+                            lstm_pred_scaled = []
+                            for _ in range(langkah_prediksi):
+                                pred = lstm_model.predict(input_seq, verbose=0)
+                                lstm_pred_scaled.append(pred[0,0])
+                                input_seq = np.append(input_seq[:, :, 1:], pred).reshape(1, 1, look_back)
+                                
+                            lstm_pred = scaler.inverse_transform(np.array(lstm_pred_scaled).reshape(-1, 1)).flatten()
+                            
+                            # 6. PENGGABUNGAN (HYBRID)
+                            hybrid_forecast = arima_forecast + lstm_pred
+                            hybrid_forecast = np.maximum(hybrid_forecast, 0) # Mencegah prediksi minus
+                            
+                            # 7. VISUALISASI HASIL
+                            tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
+                            fig_hybrid = go.Figure()
+                            fig_hybrid.add_trace(go.Scatter(x=df_ts.tail(20).index, y=df_ts.tail(20)['Jumlah'], name='Data Aktual', line=dict(color='#3498db', width=3)))
+                            fig_hybrid.add_trace(go.Scatter(x=tanggal_fc, y=hybrid_forecast, name='Prediksi Hybrid (ARIMA+LSTM)', line=dict(color='#9b59b6', dash='dash', width=3)))
+                            
+                            st.plotly_chart(fig_hybrid, use_container_width=True, theme="streamlit")
+                            st.success("✅ Pemodelan Hybrid ARIMA-LSTM Berhasil Dieksekusi!")
+                            
+                    except ImportError:
+                        st.error("⚠️ Library `tensorflow` atau `scikit-learn` belum terinstal. Tambahkan di requirements.txt!")
+                    except Exception as e:
+                        st.error(f"Gagal memproses LSTM: {e}")
+
+                
+        with tab3:
             # FITUR 8: SIMULASI MONTE CARLO
             st.subheader("🎲 Monte Carlo (100 Skenario)")
             mean_p = df_ts['Jumlah'].mean(); std_p = df_ts['Jumlah'].std()
@@ -446,7 +525,7 @@ elif menu == "🔮 Advanced Stats & Predict":
             st.plotly_chart(fig_mc, use_container_width=True, theme="streamlit")
             st.caption(f"Estimasi puncak pengeluaran 30 hari ke depan: Rp {np.percentile(simulasi[-1, :], 95):,.0f}")
 
-        with tab3:
+        with tab4:
             # FITUR 11: DIAGNOSTIK ADF
             st.subheader("Analisis Diagnostik Runtun Waktu (Time-Series)")
             st.write("Pengujian akar unit (Unit Root Test) untuk memastikan data pengeluaran memenuhi asumsi stasioneritas sebelum pemodelan lanjutan.")
