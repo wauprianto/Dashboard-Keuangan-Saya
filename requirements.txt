@@ -8,4 +8,4 @@ google-generativeai
 fpdf
 requests
 pillow
-tensorflow
+tensorflow-cpu
