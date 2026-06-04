@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import pytz  # TAMBAHAN: Library untuk zona waktu
 import os
 import json
 import tempfile
@@ -349,7 +350,7 @@ elif menu == "📈 Analyze":
         st.markdown("---")
         
         # FITUR 1: SANKEY DIAGRAM (WARNA CERAH)
-        st.subheader("Sankey Diagram)")
+        st.subheader("Sankey Diagram")
         df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
         label_node = ["Pemasukan Bulanan"] + df_keluar['Kategori'].tolist() + ["Sisa Saldo"]
         sumber = [0] * (len(df_keluar) + 1)
@@ -575,6 +576,12 @@ with st.popover("💬", use_container_width=False):
         sisa_bln = in_bln - out_bln
         saldo_total = df_chat[df_chat['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df_chat[df_chat['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
         
+        # --- TAMBAHAN KODE WAKTU UNTUK AI ---
+        tz_jakarta = pytz.timezone('Asia/Jakarta')
+        waktu_sekarang_chat = datetime.now(tz_jakarta)
+        teks_waktu = waktu_sekarang_chat.strftime("%A, %d %B %Y, jam %H:%M WIB")
+        # ------------------------------------
+        
         # Simpan pesan user ke history memori
         user_entry = {"role": "user", "content": user_msg}
         
@@ -602,6 +609,9 @@ with st.popover("💬", use_container_width=False):
             # 2. Menyusun Instruksi Sistem Berisi Suapan Data Finansial Terkini
             instruksi_sistem = f"""Kamu adalah Dimas, asisten AI finansial dan teman ngobrol yang asik.
             Profil Pengguna: {profil_pribadi}
+            
+            INFORMASI WAKTU SAAT INI (PENTING):
+            Sekarang adalah {teks_waktu}. Gunakan acuan ini secara akurat jika pengguna menanyakan jam, hari, atau tanggal.
             
             DATA FINANSIAL REAL-TIME DASHBOARD BULAN INI ({bulan_ini_chat}):
             - Total Pemasukan Bulan Ini: Rp {in_bln:,.0f}
