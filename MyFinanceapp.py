@@ -566,6 +566,7 @@ with st.popover("💬", use_container_width=False):
         bulan_ini_chat = waktu_wib_chat.to_period('M')
         
         df_chat = df.copy()
+        df_chat['Tanggal'] = pd.to_datetime(df_chat['Tanggal'])
         df_chat['Bulan_Tahun'] = df_chat['Tanggal'].dt.to_period('M')
         df_bulan_ini = df_chat[df_chat['Bulan_Tahun'] == bulan_ini_chat]
         
