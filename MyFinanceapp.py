@@ -501,7 +501,7 @@ with st.popover("💬", use_container_width=False):
                     st.image(img_obj, width=200)
                     
         try:
-            genai.configure(api_key_saya=st.secrets["Gemini_API_Key"])
+            genai.configure(api_key=st.secrets["Gemini_API_Key"])
             model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
             
             # Rakit memori chat untuk dikirim ke API
