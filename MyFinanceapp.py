@@ -463,56 +463,55 @@ with st.popover("💬", use_container_width=False):
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [{"role": "assistant", "content": "Halo! Aku AI Advisor Kamu, Ada yang bisa dibantu?"}]
 
-    with st.container(height=300):
+    # Area Chat History
+    chat_container = st.container(height=300)
+    with chat_container:
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]): 
                 st.markdown(msg["content"])
-                if "image" in msg:
+                if "image" in msg and msg["image"] is not None:
                     st.image(msg["image"], width=200)
 
-    # Form Chat dengan Layout Modern (Kamera & Pesawat Kertas)
-    with st.form("chat_form", clear_on_submit=True, border=False):
-        col_img, col_txt, col_btn = st.columns([1.5, 6, 1.5])
-        
-        with col_img:
-            # Tombol Upload Gambar
-            uploaded_img = st.file_uploader("", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
-            
-        with col_txt:
-            # Kolom Ketik Pesan
-            user_msg = st.text_input("Pesan:", label_visibility="collapsed", placeholder="Ketik pesan...")
-            
-        with col_btn:
-            # Tombol Kirim (Pesawat Kertas)
-            st.markdown("<br>", unsafe_allow_html=True) # Spacer agar sejajar
-            submit_chat = st.form_submit_button("🚀")
+    # Tombol Upload Mini di atas kotak chat
+    with st.popover("➕ Upload Foto", use_container_width=True):
+        uploaded_img = st.file_uploader("", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
+        if uploaded_img:
+            st.success("Foto siap dikirim!")
 
-    if submit_chat and (user_msg or uploaded_img):
-        # Menyimpan input user ke riwayat
-        user_entry = {"role": "user", "content": user_msg if user_msg else "Mengirim gambar..."}
+    # Kotak Teks Modern (Bentuk Melengkung & Panah Bawaan)
+    user_msg = st.chat_input("Ketik pesan...")
+
+    if user_msg:
+        # Simpan pesan user
+        user_entry = {"role": "user", "content": user_msg}
         
         import PIL.Image
         img_obj = None
         if uploaded_img:
             img_obj = PIL.Image.open(uploaded_img)
-            user_entry["image"] = img_obj # Simpan gambar ke memori UI
+            user_entry["image"] = img_obj
             
         st.session_state.chat_history.append(user_entry)
         
+        # Tampilkan langsung pesan user di layar
+        with chat_container:
+            with st.chat_message("user"):
+                st.markdown(user_msg)
+                if img_obj:
+                    st.image(img_obj, width=200)
+                    
         try:
             genai.configure(api_key_saya=st.secrets["Gemini_API_Key"])
-            # Menggunakan model Gemini 3.1 Flash Lite sesuai sistem Anda
-            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite') 
+            model_ai = genai.GenerativeModel('gemini-3.1-flash-lite')
             
-            # Merakit prompt berdasarkan ada/tidaknya gambar
+            # Rakit memori chat untuk dikirim ke API
             prompt_parts = [f"Instruksi: Balas santai. \nPesan: {user_msg}"]
             if img_obj:
                 prompt_parts.append(img_obj)
-            
+                
             response = model_ai.generate_content(prompt_parts)
             
             st.session_state.chat_history.append({"role": "assistant", "content": response.text})
             st.rerun()
         except Exception as e:
-            st.error(f"Gagal memuat AI. Pesan error: {e}")
-
+            st.error("Gagal memuat AI. Pastikan API valid.")
