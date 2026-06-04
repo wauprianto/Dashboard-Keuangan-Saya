@@ -1,9 +1,11 @@
 streamlit
 pandas
+numpy
 plotly
 statsmodels
-numpy
 scikit-learn
 google-generativeai
-requests
 fpdf
+requests
+pillow
+tensorflow
