@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
 import tempfile
@@ -119,7 +119,7 @@ def tebak_kategori(keterangan, tipe):
     return "Lain-lain"
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.markdown("## 💠 Smart Finance")
+st.sidebar.markdown("## Smart Finance")
 st.sidebar.markdown("---")
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 Advanced Stats & Predict"])
 st.sidebar.markdown("---")
@@ -137,6 +137,13 @@ except:
 # Link Asli Markdown yang pasti bisa diklik
 st.sidebar.markdown("🔗 [Buka Market Binance (BTC)](https://www.binance.com/en/trade/BTC_USDT)")
 st.sidebar.markdown("---")
+
+# TOMBOL HAPUS CACHE AGAR TIDAK ERROR TANGGAL
+if st.sidebar.button("🧹 Hapus Cache Aplikasi", use_container_width=True):
+    st.cache_data.clear()
+    st.sidebar.success("Cache dibersihkan!")
+    st.rerun()
+    
 st.sidebar.caption("© 2026 | Analytics Dashboard")
 
 # ==========================================
@@ -145,9 +152,13 @@ st.sidebar.caption("© 2026 | Analytics Dashboard")
 if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     
-    # FITUR 2: INDIKATOR TREN (DELTA) PADA METRIK
-    waktu_sekarang = pd.Timestamp.now().normalize()
+    # ---------------------------------------------------------
+    # KOREKSI: SISTEM WAKTU DIKUNCI KE WIB (UTC + 7 JAM)
+    # ---------------------------------------------------------
+    waktu_wib = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
+    waktu_sekarang = waktu_wib.normalize().tz_localize(None)
     kemarin = waktu_sekarang - pd.Timedelta(days=1)
+    
     df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
     
     df_harian = df[df['Tanggal_Clean'] == waktu_sekarang]
@@ -191,6 +202,34 @@ if menu == "🏠 Dashboard":
         fig_gauge.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0))
         st.plotly_chart(fig_gauge, use_container_width=True, theme="streamlit")
         
+        # FITUR 5: PEMINDAI STRUK AI VISION (BARU DITAMBAHKAN)
+        st.subheader("📸 Scan Struk (AI Vision)")
+        file_struk = st.file_uploader("Upload foto struk belanja:", type=['png', 'jpg', 'jpeg'])
+        if file_struk:
+            if st.button("Proses Struk dengan AI", use_container_width=True):
+                try:
+                    import PIL.Image
+                    img_struk = PIL.Image.open(file_struk)
+                    api_key = st.secrets["Gemini_API_Key"]
+                    genai.configure(api_key=api_key)
+                    model_vision = genai.GenerativeModel('gemini-3.1-flash-lite')
+                    
+                    prompt_vision = """
+                    Baca struk ini. Ekstrak total belanja (hanya angka bulat, tanpa tulisan Rp/titik/koma) 
+                    dan tebak kategori (Pilih salah satu: Makan/Minum, Transportasi, Tagihan, Belanja, Hiburan, Lain-lain). 
+                    Format output HANYA JSON: {"Kategori": "...", "Jumlah": 15000}
+                    """
+                    respon_vision = model_vision.generate_content([prompt_vision, img_struk])
+                    hasil_vision = json.loads(respon_vision.text.replace('```json\n', '').replace('```', '').strip())
+                    
+                    # Simpan data dengan Waktu WIB
+                    df = pd.concat([df, pd.DataFrame([{'Tanggal': pd.to_datetime(waktu_sekarang), 'Tipe': 'Pengeluaran', 'Kategori': hasil_vision['Kategori'], 'Jumlah': hasil_vision['Jumlah'], 'Keterangan': 'Input dari Scan Struk'}])], ignore_index=True)
+                    save_data(df)
+                    st.success(f"✅ Sukses discan! Kategori: {hasil_vision['Kategori']} | Rp {hasil_vision['Jumlah']:,.0f}")
+                    st.rerun()
+                except Exception as e:
+                    st.error("Gagal membaca struk. Pastikan foto terang dan API Key valid.")
+
         # FITUR 4: MAGIC INPUT AI
         st.subheader("🪄 Magic Input")
         with st.form("magic_form", border=True):
@@ -203,7 +242,7 @@ if menu == "🏠 Dashboard":
                         model = genai.GenerativeModel('gemini-3.1-flash-lite')
                         prompt = f"""Ekstrak teks ini jadi format JSON. Kunci: 'Tipe' (Pemasukan/Pengeluaran), 'Kategori' (Makan/Minum, Transportasi, Tagihan, Belanja, Hiburan, Gaji, Bonus, Lain-lain), 'Jumlah' (angka bulat), 'Keterangan' (string). Teks: "{magic_teks}". Hanya output JSON."""
                         respon = model.generate_content(prompt)
-                        hasil = json.loads(respon.text.strip('`json\n '))
+                        hasil = json.loads(respon.text.replace('```json\n', '').replace('```', '').strip())
                         
                         df = pd.concat([df, pd.DataFrame([{'Tanggal': pd.to_datetime(waktu_sekarang), 'Tipe': hasil['Tipe'], 'Kategori': hasil['Kategori'], 'Jumlah': hasil['Jumlah'], 'Keterangan': hasil['Keterangan']}])], ignore_index=True)
                         save_data(df)
@@ -216,7 +255,7 @@ if menu == "🏠 Dashboard":
         st.subheader("📝 Catat Manual")
         if 'form_key' not in st.session_state: st.session_state.form_key = 0
             
-        tanggal = st.date_input("Tanggal Transaksi", datetime.today())
+        tanggal = st.date_input("Tanggal Transaksi", waktu_wib.date())
         tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
         keterangan = st.text_input("Keterangan", placeholder="Cth: Makan Siang", key=f"ket_{st.session_state.form_key}")
         prediksi_kat = tebak_kategori(keterangan, tipe) if keterangan else "Lain-lain"
@@ -310,7 +349,7 @@ elif menu == "📈 Analyze":
         st.markdown("---")
         
         # FITUR 1: SANKEY DIAGRAM (WARNA CERAH)
-        st.subheader("🌊 Peta Arus Kas (Sankey Diagram)")
+        st.subheader("Sankey Diagram)")
         df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
         label_node = ["Pemasukan Bulanan"] + df_keluar['Kategori'].tolist() + ["Sisa Saldo"]
         sumber = [0] * (len(df_keluar) + 1)
@@ -331,13 +370,13 @@ elif menu == "📈 Analyze":
         # GRAFIK BAR & PIE (COLORFUL)
         col_c1, col_c2 = st.columns(2)
         with col_c1:
-            st.subheader("📊 Arus Harian")
+            st.subheader("Cash Flow")
             df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
             fig_bar = px.bar(df_tren, x='Tanggal', y='Jumlah', color='Tipe', color_discrete_map={"Pemasukan": "#3498db", "Pengeluaran": "#e74c3c"})
             st.plotly_chart(fig_bar, use_container_width=True, theme="streamlit")
             
         with col_c2:
-            st.subheader("🍕 Proporsi Pengeluaran")
+            st.subheader("Distribusi Pengeluaran")
             if not df_keluar.empty:
                 fig_pie = px.pie(df_keluar, values='Jumlah', names='Kategori', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
                 st.plotly_chart(fig_pie, use_container_width=True, theme="streamlit")
@@ -374,7 +413,7 @@ elif menu == "🔮 Advanced Stats & Predict":
     else:
         df_ts = df_pengeluaran.groupby('Tanggal')['Jumlah'].sum().reset_index().set_index('Tanggal').asfreq('D', fill_value=0)
         
-        tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)", "⚙️ AI Hardware Features"])
+        tab1, tab2, tab3 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
         
         with tab1:
             st.subheader("Proyeksi Tren (ARIMA)")
@@ -416,13 +455,6 @@ elif menu == "🔮 Advanced Stats & Predict":
             if hasil[1] < 0.05: st.success("Data stasioner (Tolak H0).")
             else: st.error("Data tidak stasioner. Lakukan differencing.")
 
-        with tab4:
-            # PLACEHOLDER FITUR 5, 7, 10, 12 AGAR SERVER TIDAK CRASH
-            st.subheader("Modul Ekstra (Membutuhkan Instalasi Server Lokal)")
-            st.info("🧾 **OCR Pemindai Struk:** Membutuhkan instalasi `tesseract-ocr` dan `pdf2image` di OS Server.")
-            st.info("🎙️ **Voice-to-Text:** Membutuhkan akses mic browser via modul `streamlit-mic-recorder`.")
-            st.info("🧠 **Hybrid LSTM:** Membutuhkan library `tensorflow` atau `pytorch` (Resource Heavy).")
-            st.info("🕵️‍♂️ **RAG Agent:** Membutuhkan `langchain` dan Vector Database seperti `chromadb`.")
 
 # ==========================================
 # FITUR CHAT BUBBLE AI
