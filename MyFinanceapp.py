@@ -15,8 +15,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
 import google.generativeai as genai
 import warnings
-from streamlit_gsheets import GSheetsConnection 
-
+from streamlit_gsheets import GSheetsConnection  # TAMBAHAN: Library Google Sheets
 
 # Coba load FPDF untuk cetak PDF
 try:
@@ -96,21 +95,29 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
+        # Membaca data langsung dari lembar kerja Sheet1
         df = conn.read(worksheet="Sheet1")
+        
+        # Antisipasi jika database kosong atau kolom belum terbentuk
         if df.empty or 'Tanggal' not in df.columns:
             return pd.DataFrame(columns=['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan'])
+            
         df['Tanggal'] = pd.to_datetime(df['Tanggal'])
         return df
     except Exception as e:
+        # Kembalikan dataframe kosong terstruktur jika pembacaan gagal/awal sistem
         return pd.DataFrame(columns=['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan'])
 
 def save_data(df_baru):
     try:
+        # Memperbarui data secara menyeluruh ke Google Sheets
         conn.update(worksheet="Sheet1", data=df_baru)
-        st.cache_data.clear() # Membersihkan cache agar data langsung muncul
+        # Hapus cache internal Streamlit agar inputan langsung ter-render di halaman utama
+        st.cache_data.clear()
     except Exception as e:
         st.error(f"❌ Gagal sinkronisasi ke Google Sheets: {e}")
 
+# Memuat data aktif
 df = load_data()
 
 def tebak_kategori(keterangan, tipe):
@@ -133,7 +140,7 @@ st.sidebar.markdown("---")
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 Advanced Stats & Predict"])
 st.sidebar.markdown("---")
 
-# FITUR 13: LIVE API PORTOFOLIO EKSTERNAL (LINK DIPERBAIKI)
+# FITUR 13: LIVE API PORTOFOLIO EKSTERNAL
 st.sidebar.caption("🌍 Live Global Market")
 try:
     btc_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3)
@@ -143,11 +150,9 @@ try:
 except:
     st.sidebar.caption("API Market tidak tersedia.")
     
-# Link Asli Markdown yang pasti bisa diklik
 st.sidebar.markdown("🔗 [Buka Market Binance (BTC)](https://www.binance.com/en/trade/BTC_USDT)")
 st.sidebar.markdown("---")
 
-# TOMBOL HAPUS CACHE AGAR TIDAK ERROR TANGGAL
 if st.sidebar.button("🧹 Hapus Cache Aplikasi", use_container_width=True):
     st.cache_data.clear()
     st.sidebar.success("Cache dibersihkan!")
@@ -161,29 +166,23 @@ st.sidebar.caption("© 2026 | Analytics Dashboard")
 if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     
-        # ---------------------------------------------------------
-    # KOREKSI: SISTEM WAKTU DIKUNCI KE WIB (UTC + 7 JAM)
-    # ---------------------------------------------------------
     waktu_wib = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
     waktu_sekarang = waktu_wib.normalize().tz_localize(None)
     kemarin = waktu_sekarang - pd.Timedelta(days=1)
     
-    # Berikan pengondisian jika data di Google Sheets sudah ada isinya (SPASI SUDAH DIRAPIKAN)
     if not df.empty:
         df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
         df_harian = df[df['Tanggal_Clean'] == waktu_sekarang]
         df_kemarin = df[df['Tanggal_Clean'] == kemarin]
-
+        
         in_hari_ini = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
         in_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pemasukan']['Jumlah'].sum()
         out_hari_ini = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
         out_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
         saldo_akhir = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     else:
-        # Jika Google Sheets masih kosong (awal penggunaan), set semua angka ke 0
         in_hari_ini = in_kemarin = out_hari_ini = out_kemarin = saldo_akhir = 0
-        
-    # BAGIAN INI KELUAR DARI 'else:' DAN SEJAJAR DENGAN 'if not df.empty:'
+
     delta_in = int(in_hari_ini - in_kemarin)
     delta_out = int(out_hari_ini - out_kemarin)
     
@@ -193,11 +192,10 @@ if menu == "🏠 Dashboard":
     col3.metric("💎 Saldo Akhir (Aktual)", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
-
+    
     col_gauge, col_form = st.columns([1, 1.5])
     
     with col_gauge:
-        # FITUR 6: SPIDOMETER BURN RATE
         st.subheader("🏎️ Burn Rate Meter")
         batas_aman = 150000 
         fig_gauge = go.Figure(go.Indicator(
@@ -216,7 +214,6 @@ if menu == "🏠 Dashboard":
         fig_gauge.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0))
         st.plotly_chart(fig_gauge, use_container_width=True, theme="streamlit")
         
-        # FITUR 5: PEMINDAI STRUK AI VISION (BARU DITAMBAHKAN)
         st.subheader("📸 Scan Struk (AI Vision)")
         file_struk = st.file_uploader("Upload foto struk belanja:", type=['png', 'jpg', 'jpeg'])
         if file_struk:
@@ -236,7 +233,6 @@ if menu == "🏠 Dashboard":
                     respon_vision = model_vision.generate_content([prompt_vision, img_struk])
                     hasil_vision = json.loads(respon_vision.text.replace('```json\n', '').replace('```', '').strip())
                     
-                    # Simpan data dengan Waktu WIB
                     df = pd.concat([df, pd.DataFrame([{'Tanggal': pd.to_datetime(waktu_sekarang), 'Tipe': 'Pengeluaran', 'Kategori': hasil_vision['Kategori'], 'Jumlah': hasil_vision['Jumlah'], 'Keterangan': 'Input dari Scan Struk'}])], ignore_index=True)
                     save_data(df)
                     st.success(f"✅ Sukses discan! Kategori: {hasil_vision['Kategori']} | Rp {hasil_vision['Jumlah']:,.0f}")
@@ -244,7 +240,6 @@ if menu == "🏠 Dashboard":
                 except Exception as e:
                     st.error("Gagal membaca struk. Pastikan foto terang dan API Key valid.")
 
-        # FITUR 4: MAGIC INPUT AI
         st.subheader("🪄 Magic Input")
         with st.form("magic_form", border=True):
             magic_teks = st.text_input("Ketik transaksi natural:", placeholder="Cth: Tadi naik kereta 15000")
@@ -290,25 +285,20 @@ if menu == "🏠 Dashboard":
                 
     st.markdown("---")
     
-    # -----------------------------------------------------
-    # KOREKSI: TABEL RIWAYAT TRANSAKSI (TANPA TANGGAL_CLEAN & DENGAN FORMAT TITIK)
-    # -----------------------------------------------------
     st.subheader("📋 Riwayat Transaksi")
     if not df.empty:
         pilihan_tipe = st.multiselect("Filter Jenis:", options=["Pemasukan", "Pengeluaran"], default=["Pemasukan", "Pengeluaran"])
         
-        # Ekstrak data dan buang Tanggal_Clean
         df_tampil = df[df['Tipe'].isin(pilihan_tipe)].sort_values(by='Tanggal', ascending=False)
         df_tampil = df_tampil[['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan']].copy()
         
-        # Format Angka Ribuan dengan Titik (.)
         df_tampil['Jumlah'] = df_tampil['Jumlah'].apply(lambda x: f"{int(x):,}".replace(",", "."))
         
         def color_jumlah(row):
             return ['color: #2ecc71'] * len(row) if row['Tipe'] == 'Pemasukan' else ['color: #e74c3c'] * len(row)
             
         st.dataframe(
-            df_tampil.style.apply(color_jumlah, axis=1).format({"Tanggal": lambda x: x.strftime("%Y-%m-%d")}), 
+            df_tampil.style.apply(color_jumlah, axis=1).format({"Tanggal": lambda x: pd.to_datetime(x).strftime("%Y-%m-%d")}), 
             use_container_width=True, height=350, hide_index=True
         )
     else:
@@ -339,7 +329,6 @@ elif menu == "📈 Analyze":
             csv = df_bulanan.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Ekspor CSV", data=csv, file_name=f"Data_{bulan_pilihan}.csv", mime="text/csv", use_container_width=True)
             
-        # FITUR 3: TOMBOL EKSPOR PDF
         with col_opt3:
             st.markdown("<br>", unsafe_allow_html=True)
             if PDF_READY:
@@ -362,7 +351,6 @@ elif menu == "📈 Analyze":
 
         st.markdown("---")
         
-        # FITUR 1: SANKEY DIAGRAM (WARNA CERAH)
         st.subheader("Sankey Diagram")
         df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
         label_node = ["Pemasukan Bulanan"] + df_keluar['Kategori'].tolist() + ["Sisa Saldo"]
@@ -381,7 +369,6 @@ elif menu == "📈 Analyze":
             
         st.markdown("---")
 
-        # GRAFIK BAR & PIE (COLORFUL)
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.subheader("Cash Flow")
@@ -397,7 +384,6 @@ elif menu == "📈 Analyze":
 
         st.markdown("---")
         
-        # FITUR 9: K-MEANS CLUSTERING
         st.subheader("🤖 Segmentasi Gaya Hidup (K-Means)")
         df_peng_hari = df_bulanan[df_bulanan['Tipe']=='Pengeluaran'].groupby(df_bulanan['Tanggal'].dt.date)['Jumlah'].sum().reset_index()
         if len(df_peng_hari) >= 5: 
@@ -420,133 +406,124 @@ elif menu == "📈 Analyze":
 # ==========================================
 elif menu == "🔮 Advanced Stats & Predict":
     st.title("Statistika Lanjut & Prediksi")
-    df_pengeluaran = df[df['Tipe'] == 'Pengeluaran'].copy()
-    
-    if len(df_pengeluaran['Tanggal'].unique()) < 7:
-        st.warning("⚠️ Butuh data pengeluaran 7 hari berbeda.")
+    if df.empty:
+        st.warning("⚠️ Belum ada data transaksi.")
     else:
-        df_ts = df_pengeluaran.groupby('Tanggal')['Jumlah'].sum().reset_index().set_index('Tanggal').asfreq('D', fill_value=0)
+        df_pengeluaran = df[df['Tipe'] == 'Pengeluaran'].copy()
         
-        tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
-        
-        with tab1:
-            st.subheader("Proyeksi Tren (ARIMA)")
-            try:
-                model = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
-                model_fit = model.fit()
-                prediksi_obj = model_fit.get_forecast(steps=7)
-                forecast_mean = prediksi_obj.predicted_mean.apply(lambda x: max(0, x))
-                tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=7)
-                
-                fig_fc = go.Figure()
-                fig_fc.add_trace(go.Scatter(x=df_ts.tail(20).index, y=df_ts.tail(20)['Jumlah'], name='Aktual', line=dict(color='#3498db', width=3)))
-                fig_fc.add_trace(go.Scatter(x=tanggal_fc, y=forecast_mean, name='Prediksi', line=dict(color='#e74c3c', dash='dot', width=3)))
-                st.plotly_chart(fig_fc, use_container_width=True, theme="streamlit")
-            except:
-                st.error("Model ARIMA gagal berkonvergensi.")
-
-        with tab2:
-            st.subheader("🧠 Model Hybrid ARIMA-LSTM")
-            st.write("Menggabungkan kemampuan prediksi linear (ARIMA) dengan pengenalan pola non-linear (LSTM) pada residual data.")
+        if len(df_pengeluaran['Tanggal'].unique()) < 7:
+            st.warning("⚠️ Butuh data pengeluaran 7 hari berbeda.")
+        else:
+            df_ts = df_pengeluaran.groupby('Tanggal')['Jumlah'].sum().reset_index().set_index('Tanggal').asfreq('D', fill_value=0)
             
-            if st.button("🚀 Jalankan Kalkulasi Hybrid (Komputasi Berat)", use_container_width=True):
-                with st.spinner("Memuat TensorFlow dan memproses Jaringan Saraf Tiruan..."):
-                    try:
-                        from tensorflow.keras.models import Sequential
-                        from tensorflow.keras.layers import LSTM, Dense
-                        from sklearn.preprocessing import MinMaxScaler
-                        
-                        # 1. FIT ARIMA
-                        model_arima = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
-                        model_arima_fit = model_arima.fit()
-                        
-                        # 2. EKSTRAKSI RESIDUAL (Error dari ARIMA)
-                        residuals = model_arima_fit.resid.values.reshape(-1, 1)
-                        
-                        # 3. PRE-PROCESSING DATA UNTUK LSTM
-                        scaler = MinMaxScaler(feature_range=(-1, 1))
-                        resid_scaled = scaler.fit_transform(residuals)
-                        
-                        # Membuat sekuens waktu (Lag = 3 hari)
-                        def create_dataset(dataset, look_back=3):
-                            X, Y = [], []
-                            for i in range(len(dataset)-look_back-1):
-                                a = dataset[i:(i+look_back), 0]
-                                X.append(a)
-                                Y.append(dataset[i + look_back, 0])
-                            return np.array(X), np.array(Y)
+            tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
+            
+            with tab1:
+                st.subheader("Proyeksi Tren (ARIMA)")
+                try:
+                    model = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
+                    model_fit = model.fit()
+                    prediksi_obj = model_fit.get_forecast(steps=7)
+                    forecast_mean = prediksi_obj.predicted_mean.apply(lambda x: max(0, x))
+                    tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=7)
+                    
+                    fig_fc = go.Figure()
+                    fig_fc.add_trace(go.Scatter(x=df_ts.tail(20).index, y=df_ts.tail(20)['Jumlah'], name='Aktual', line=dict(color='#3498db', width=3)))
+                    fig_fc.add_trace(go.Scatter(x=tanggal_fc, y=forecast_mean, name='Prediksi', line=dict(color='#e74c3c', dash='dot', width=3)))
+                    st.plotly_chart(fig_fc, use_container_width=True, theme="streamlit")
+                except:
+                    st.error("Model ARIMA gagal berkonvergensi.")
+
+            with tab2:
+                st.subheader("🧠 Model Hybrid ARIMA-LSTM")
+                st.write("Menggabungkan kemampuan prediksi linear (ARIMA) dengan pengenalan pola non-linear (LSTM) pada residual data.")
+                
+                if st.button("🚀 Jalankan Kalkulasi Hybrid (Komputasi Berat)", use_container_width=True):
+                    with st.spinner("Memuat TensorFlow dan memproses Jaringan Saraf Tiruan..."):
+                        try:
+                            from tensorflow.keras.models import Sequential
+                            from tensorflow.keras.layers import LSTM, Dense
+                            from sklearn.preprocessing import MinMaxScaler
                             
-                        look_back = 3
-                        X, Y = create_dataset(resid_scaled, look_back)
-                        
-                        if len(X) == 0:
-                            st.error("Data historis terlalu sedikit untuk melatih LSTM. Tambahkan lebih banyak data pengeluaran.")
-                        else:
-                            # Reshape format LSTM: [samples, time steps, features]
-                            X = np.reshape(X, (X.shape[0], 1, X.shape[1]))
+                            model_arima = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
+                            model_arima_fit = model_arima.fit()
                             
-                            # 4. ARSITEKTUR & PELATIHAN LSTM
-                            lstm_model = Sequential()
-                            lstm_model.add(LSTM(50, input_shape=(1, look_back)))
-                            lstm_model.add(Dense(1))
-                            lstm_model.compile(loss='mean_squared_error', optimizer='adam')
-                            lstm_model.fit(X, Y, epochs=20, batch_size=1, verbose=0)
+                            residuals = model_arima_fit.resid.values.reshape(-1, 1)
                             
-                            # 5. PREDIKSI 7 HARI KE DEPAN
-                            langkah_prediksi = 7
-                            arima_forecast = model_arima_fit.forecast(steps=langkah_prediksi).values
+                            scaler = MinMaxScaler(feature_range=(-1, 1))
+                            resid_scaled = scaler.fit_transform(residuals)
                             
-                            input_seq = resid_scaled[-look_back:].reshape(1, 1, look_back)
-                            lstm_pred_scaled = []
-                            for _ in range(langkah_prediksi):
-                                pred = lstm_model.predict(input_seq, verbose=0)
-                                lstm_pred_scaled.append(pred[0,0])
-                                input_seq = np.append(input_seq[:, :, 1:], pred).reshape(1, 1, look_back)
+                            def create_dataset(dataset, look_back=3):
+                                X, Y = [], []
+                                for i in range(len(dataset)-look_back-1):
+                                    a = dataset[i:(i+look_back), 0]
+                                    X.append(a)
+                                    Y.append(dataset[i + look_back, 0])
+                                return np.array(X), np.array(Y)
                                 
-                            lstm_pred = scaler.inverse_transform(np.array(lstm_pred_scaled).reshape(-1, 1)).flatten()
+                            look_back = 3
+                            X, Y = create_dataset(resid_scaled, look_back)
                             
-                            # 6. PENGGABUNGAN (HYBRID)
-                            hybrid_forecast = arima_forecast + lstm_pred
-                            hybrid_forecast = np.maximum(hybrid_forecast, 0) # Mencegah prediksi minus
-                            
-                            # 7. VISUALISASI HASIL
-                            tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
-                            fig_hybrid = go.Figure()
-                            fig_hybrid.add_trace(go.Scatter(x=df_ts.tail(20).index, y=df_ts.tail(20)['Jumlah'], name='Data Aktual', line=dict(color='#3498db', width=3)))
-                            fig_hybrid.add_trace(go.Scatter(x=tanggal_fc, y=hybrid_forecast, name='Prediksi Hybrid (ARIMA+LSTM)', line=dict(color='#9b59b6', dash='dash', width=3)))
-                            
-                            st.plotly_chart(fig_hybrid, use_container_width=True, theme="streamlit")
-                            st.success("✅ Pemodelan Hybrid ARIMA-LSTM Berhasil Dieksekusi!")
-                            
-                    except ImportError:
-                        st.error("⚠️ Library `tensorflow` atau `scikit-learn` belum terinstal. Tambahkan di requirements.txt!")
-                    except Exception as e:
-                        st.error(f"Gagal memproses LSTM: {e}")
+                            if len(X) == 0:
+                                st.error("Data historis terlalu sedikit untuk melatih LSTM. Tambahkan lebih banyak data pengeluaran.")
+                            else:
+                                X = np.reshape(X, (X.shape[0], 1, X.shape[1]))
+                                
+                                lstm_model = Sequential()
+                                lstm_model.add(LSTM(50, input_shape=(1, look_back)))
+                                lstm_model.add(Dense(1))
+                                lstm_model.compile(loss='mean_squared_error', optimizer='adam')
+                                lstm_model.fit(X, Y, epochs=20, batch_size=1, verbose=0)
+                                
+                                langkah_prediksi = 7
+                                arima_forecast = model_arima_fit.forecast(steps=langkah_prediksi).values
+                                
+                                input_seq = resid_scaled[-look_back:].reshape(1, 1, look_back)
+                                lstm_pred_scaled = []
+                                for _ in range(langkah_prediksi):
+                                    pred = lstm_model.predict(input_seq, verbose=0)
+                                    lstm_pred_scaled.append(pred[0,0])
+                                    input_seq = np.append(input_seq[:, :, 1:], pred).reshape(1, 1, look_back)
+                                    
+                                lstm_pred = scaler.inverse_transform(np.array(lstm_pred_scaled).reshape(-1, 1)).flatten()
+                                
+                                hybrid_forecast = arima_forecast + lstm_pred
+                                hybrid_forecast = np.maximum(hybrid_forecast, 0)
+                                
+                                tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
+                                fig_hybrid = go.Figure()
+                                fig_hybrid.add_trace(go.Scatter(x=df_ts.tail(20).index, y=df_ts.tail(20)['Jumlah'], name='Data Aktual', line=dict(color='#3498db', width=3)))
+                                fig_hybrid.add_trace(go.Scatter(x=tanggal_fc, y=hybrid_forecast, name='Prediksi Hybrid (ARIMA+LSTM)', line=dict(color='#9b59b6', dash='dash', width=3)))
+                                
+                                st.plotly_chart(fig_hybrid, use_container_width=True, theme="streamlit")
+                                st.success("✅ Pemodelan Hybrid ARIMA-LSTM Berhasil Dieksekusi!")
+                                
+                        except ImportError:
+                            st.error("⚠️ Library `tensorflow` atau `scikit-learn` belum terinstal. Tambahkan di requirements.txt!")
+                        except Exception as e:
+                            st.error(f"Gagal memproses LSTM: {e}")
 
-                
-        with tab3:
-            # FITUR 8: SIMULASI MONTE CARLO
-            st.subheader("🎲 Monte Carlo (100 Skenario)")
-            mean_p = df_ts['Jumlah'].mean(); std_p = df_ts['Jumlah'].std()
-            simulasi = np.zeros((30, 100))
-            for i in range(100):
-                rw = np.maximum(np.random.normal(loc=mean_p, scale=std_p, size=30), 0)
-                simulasi[:, i] = np.cumsum(rw)
-                
-            fig_mc = go.Figure()
-            for i in range(100):
-                fig_mc.add_trace(go.Scatter(y=simulasi[:, i], mode='lines', line=dict(color='rgba(52, 152, 219, 0.1)'), showlegend=False))
-            st.plotly_chart(fig_mc, use_container_width=True, theme="streamlit")
-            st.caption(f"Estimasi puncak pengeluaran 30 hari ke depan: Rp {np.percentile(simulasi[-1, :], 95):,.0f}")
+            with tab3:
+                st.subheader("🎲 Monte Carlo (100 Skenario)")
+                mean_p = df_ts['Jumlah'].mean(); std_p = df_ts['Jumlah'].std()
+                simulasi = np.zeros((30, 100))
+                for i in range(100):
+                    rw = np.maximum(np.random.normal(loc=mean_p, scale=std_p, size=30), 0)
+                    simulasi[:, i] = np.cumsum(rw)
+                    
+                fig_mc = go.Figure()
+                for i in range(100):
+                    fig_mc.add_trace(go.Scatter(y=simulasi[:, i], mode='lines', line=dict(color='rgba(52, 152, 219, 0.1)'), showlegend=False))
+                st.plotly_chart(fig_mc, use_container_width=True, theme="streamlit")
+                st.caption(f"Estimasi puncak pengeluaran 30 hari ke depan: Rp {np.percentile(simulasi[-1, :], 95):,.0f}")
 
-        with tab4:
-            # FITUR 11: DIAGNOSTIK ADF
-            st.subheader("Analisis Diagnostik Runtun Waktu (Time-Series)")
-            st.write("Pengujian akar unit (Unit Root Test) untuk memastikan data pengeluaran memenuhi asumsi stasioneritas sebelum pemodelan lanjutan.")
-            hasil = adfuller(df_ts['Jumlah'].values)
-            st.code(f"ADF Statistic: {hasil[0]:.4f}\np-value: {hasil[1]:.4f}\nCrit Value 5%: {hasil[4]['5%']:.4f}")
-            if hasil[1] < 0.05: st.success("Data stasioner (Tolak H0).")
-            else: st.error("Data tidak stasioner. Lakukan differencing.")
+            with tab4:
+                st.subheader("Analisis Diagnostik Runtun Waktu (Time-Series)")
+                st.write("Pengujian akar unit (Unit Root Test) untuk memastikan data pengeluaran memenuhi asumsi stasioneritas sebelum pemodelan lanjutan.")
+                hasil = adfuller(df_ts['Jumlah'].values)
+                st.code(f"ADF Statistic: {hasil[0]:.4f}\np-value: {hasil[1]:.4f}\nCrit Value 5%: {hasil[4]['5%']:.4f}")
+                if hasil[1] < 0.05: st.success("Data stasioner (Tolak H0).")
+                else: st.error("Data tidak stasioner. Lakukan differencing.")
 
 # ==========================================
 # FITUR CHAT BUBBLE AI
@@ -556,7 +533,6 @@ with st.popover("💬", use_container_width=False):
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [{"role": "assistant", "content": "Halo! Aku AI Advisor Kamu, Ada yang bisa dibantu?"}]
 
-    # Area Chat History
     chat_container = st.container(height=300)
     with chat_container:
         for msg in st.session_state.chat_history:
@@ -565,37 +541,34 @@ with st.popover("💬", use_container_width=False):
                 if "image" in msg and msg["image"] is not None:
                     st.image(msg["image"], width=200)
 
-    # Tombol Upload Mini di atas kotak chat
     with st.popover("➕ Upload Foto", use_container_width=True):
         uploaded_img = st.file_uploader("", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
         if uploaded_img:
             st.success("Foto siap dikirim!")
 
-    # Kotak Teks Modern (Bentuk Melengkung & Panah Bawaan)
     user_msg = st.chat_input("Ketik pesan...")
 
     if user_msg:
-        # 1. Hitung ulang data finansial secara real-time berdasarkan zona waktu WIB
         waktu_wib_chat = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
         bulan_ini_chat = waktu_wib_chat.to_period('M')
         
-        df_chat = df.copy()
-        df_chat['Tanggal'] = pd.to_datetime(df_chat['Tanggal'])
-        df_chat['Bulan_Tahun'] = df_chat['Tanggal'].dt.to_period('M')
-        df_bulan_ini = df_chat[df_chat['Bulan_Tahun'] == bulan_ini_chat]
+        if not df.empty:
+            df_chat = df.copy()
+            df_chat['Tanggal'] = pd.to_datetime(df_chat['Tanggal'])
+            df_chat['Bulan_Tahun'] = df_chat['Tanggal'].dt.to_period('M')
+            df_bulan_ini = df_chat[df_chat['Bulan_Tahun'] == bulan_ini_chat]
+            
+            in_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+            out_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+            sisa_bln = in_bln - out_bln
+            saldo_total = df_chat[df_chat['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df_chat[df_chat['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+        else:
+            in_bln = out_bln = sisa_bln = saldo_total = 0
         
-        in_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-        out_bln = df_bulan_ini[df_bulan_ini['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-        sisa_bln = in_bln - out_bln
-        saldo_total = df_chat[df_chat['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df_chat[df_chat['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-        
-        # --- TAMBAHAN KODE WAKTU UNTUK AI ---
         tz_jakarta = pytz.timezone('Asia/Jakarta')
         waktu_sekarang_chat = datetime.now(tz_jakarta)
         teks_waktu = waktu_sekarang_chat.strftime("%A, %d %B %Y, jam %H:%M WIB")
-        # ------------------------------------
         
-        # Simpan pesan user ke history memori
         user_entry = {"role": "user", "content": user_msg}
         
         import PIL.Image
@@ -606,7 +579,6 @@ with st.popover("💬", use_container_width=False):
             
         st.session_state.chat_history.append(user_entry)
         
-        # Render langsung pesan user di layar agar responsif
         with chat_container:
             with st.chat_message("user"):
                 st.markdown(user_msg)
@@ -619,7 +591,6 @@ with st.popover("💬", use_container_width=False):
             
             profil_pribadi = st.secrets.get("USER_BIO", "Pengguna aplikasi ini")
             
-            # 2. Menyusun Instruksi Sistem Berisi Suapan Data Finansial Terkini
             instruksi_sistem = f"""Kamu adalah Dimas, asisten AI finansial dan teman ngobrol yang asik.
             Profil Pengguna: {profil_pribadi}
             
@@ -638,7 +609,6 @@ with st.popover("💬", use_container_width=False):
             3. jika user bertanya dengan pertanyaan diluar keuangan tolong dijawab sesuai konteks pertanyaannya dengan cermat.
             """
             
-            # Merakit bagian prompt teks dan gambar secara runtun
             prompt_parts = [instruksi_sistem, f"Pesan Pengguna: {user_msg}"]
             if img_obj:
                 prompt_parts.append(img_obj)
