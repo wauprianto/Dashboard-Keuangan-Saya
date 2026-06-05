@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import pytz  # TAMBAHAN: Library untuk zona waktu
+import pytz  
 import os
 import json
 import tempfile
@@ -15,6 +15,8 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
 import google.generativeai as genai
 import warnings
+from streamlit_gsheets import GSheetsConnection 
+
 
 # Coba load FPDF untuk cetak PDF
 try:
@@ -89,19 +91,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- INISIALISASI DATA ---
-DATA_FILE = 'data_keuangan.csv'
+# --- INISIALISASI DATA (KONEKSI GOOGLE SHEETS API) ---
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
-    if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE)
+    try:
+        df = conn.read(worksheet="Sheet1")
+        if df.empty or 'Tanggal' not in df.columns:
+            return pd.DataFrame(columns=['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan'])
         df['Tanggal'] = pd.to_datetime(df['Tanggal'])
         return df
-    else:
+    except Exception as e:
         return pd.DataFrame(columns=['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan'])
 
-def save_data(df):
-    df.to_csv(DATA_FILE, index=False)
+def save_data(df_baru):
+    try:
+        conn.update(worksheet="Sheet1", data=df_baru)
+        st.cache_data.clear() # Membersihkan cache agar data langsung muncul
+    except Exception as e:
+        st.error(f"❌ Gagal sinkronisasi ke Google Sheets: {e}")
 
 df = load_data()
 
@@ -160,17 +168,20 @@ if menu == "🏠 Dashboard":
     waktu_sekarang = waktu_wib.normalize().tz_localize(None)
     kemarin = waktu_sekarang - pd.Timedelta(days=1)
     
+    # Berikan pengondisian jika data di Google Sheets sudah ada isinya
+if not df.empty:
     df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
-    
     df_harian = df[df['Tanggal_Clean'] == waktu_sekarang]
     df_kemarin = df[df['Tanggal_Clean'] == kemarin]
-    
+
     in_hari_ini = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     in_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pemasukan']['Jumlah'].sum()
     out_hari_ini = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     out_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
     saldo_akhir = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    
+else:
+    # Jika Google Sheets masih kosong (awal penggunaan), set semua angka ke 0
+    in_hari_ini = in_kemarin = out_hari_ini = out_kemarin = saldo_akhir = 0
     delta_in = int(in_hari_ini - in_kemarin)
     delta_out = int(out_hari_ini - out_kemarin)
     
