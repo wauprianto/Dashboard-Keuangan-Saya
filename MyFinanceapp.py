@@ -433,40 +433,41 @@ elif menu == "🔮 Advanced Stats & Predict":
                     st.plotly_chart(fig_fc, use_container_width=True, theme="streamlit")
                 except:
                     st.error("Model ARIMA gagal berkonvergensi.")
-
             with tab2:
                 st.subheader("🧠 Model Hybrid ARIMA-LSTM")
                 st.write("Menggabungkan kemampuan prediksi linear (ARIMA) dengan pengenalan pola non-linear (LSTM) pada residual data.")
                 
-                if st.button("🚀 Jalankan Kalkulasi Hybrid (Komputasi Berat)", use_container_width=True):
-                    with st.spinner("Memuat TensorFlow dan memproses Jaringan Saraf Tiruan..."):
-                        try:
-                            from tensorflow.keras.models import Sequential
-                            from tensorflow.keras.layers import LSTM, Dense
-                            from sklearn.preprocessing import MinMaxScaler
-                            
-                            model_arima = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
-                            model_arima_fit = model_arima.fit()
-                            
-                            residuals = model_arima_fit.resid.values.reshape(-1, 1)
-                            
-                            scaler = MinMaxScaler(feature_range=(-1, 1))
-                            resid_scaled = scaler.fit_transform(residuals)
-                            
-                            def create_dataset(dataset, look_back=3):
-                                X, Y = [], []
-                                for i in range(len(dataset)-look_back-1):
-                                    a = dataset[i:(i+look_back), 0]
-                                    X.append(a)
-                                    Y.append(dataset[i + look_back, 0])
-                                return np.array(X), np.array(Y)
+                # KOREKSI: Tambahkan perlindungan jumlah data khusus untuk Deep Learning
+                if len(df_ts) < 30:
+                    st.info("⚠️ Jaringan Saraf Tiruan (LSTM) membutuhkan minimal 30 hari data riwayat pengeluaran yang berkesinambungan agar bisa mendeteksi pola tanpa mengalami overfitting. Silakan kumpulkan data lebih banyak di dashboard utama.")
+                else:
+                    if st.button("🚀 Jalankan Kalkulasi Hybrid (Komputasi Berat)", use_container_width=True):
+                        with st.spinner("Memuat TensorFlow dan memproses Jaringan Saraf Tiruan..."):
+                            try:
+                                from tensorflow.keras.models import Sequential
+                                from tensorflow.keras.layers import LSTM, Dense
+                                from sklearn.preprocessing import MinMaxScaler
                                 
-                            look_back = 3
-                            X, Y = create_dataset(resid_scaled, look_back)
-                            
-                            if len(X) == 0:
-                                st.error("Data historis terlalu sedikit untuk melatih LSTM. Tambahkan lebih banyak data pengeluaran.")
-                            else:
+                                model_arima = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
+                                model_arima_fit = model_arima.fit()
+                                
+                                residuals = model_arima_fit.resid.values.reshape(-1, 1)
+                                
+                                scaler = MinMaxScaler(feature_range=(-1, 1))
+                                resid_scaled = scaler.fit_transform(residuals)
+                                
+                                def create_dataset(dataset, look_back=3):
+                                    X, Y = [], []
+                                    for i in range(len(dataset)-look_back-1):
+                                        a = dataset[i:(i+look_back), 0]
+                                        X.append(a)
+                                        Y.append(dataset[i + look_back, 0])
+                                    return np.array(X), np.array(Y)
+                                    
+                                look_back = 3
+                                X, Y = create_dataset(resid_scaled, look_back)
+                                
+                                # Reshape format LSTM: [samples, time steps, features]
                                 X = np.reshape(X, (X.shape[0], 1, X.shape[1]))
                                 
                                 lstm_model = Sequential()
@@ -488,7 +489,7 @@ elif menu == "🔮 Advanced Stats & Predict":
                                 lstm_pred = scaler.inverse_transform(np.array(lstm_pred_scaled).reshape(-1, 1)).flatten()
                                 
                                 hybrid_forecast = arima_forecast + lstm_pred
-                                hybrid_forecast = np.maximum(hybrid_forecast, 0)
+                                hybrid_forecast = np.maximum(hybrid_forecast, 0) # Mencegah prediksi minus
                                 
                                 tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
                                 fig_hybrid = go.Figure()
@@ -498,11 +499,11 @@ elif menu == "🔮 Advanced Stats & Predict":
                                 st.plotly_chart(fig_hybrid, use_container_width=True, theme="streamlit")
                                 st.success("✅ Pemodelan Hybrid ARIMA-LSTM Berhasil Dieksekusi!")
                                 
-                        except ImportError:
-                            st.error("⚠️ Library `tensorflow` atau `scikit-learn` belum terinstal. Tambahkan di requirements.txt!")
-                        except Exception as e:
-                            st.error(f"Gagal memproses LSTM: {e}")
-
+                            except ImportError:
+                                st.error("⚠️ Library `tensorflow` atau `scikit-learn` belum terinstal. Tambahkan di requirements.txt!")
+                            except Exception as e:
+                                st.error(f"Gagal memproses LSTM: {e}")
+                            
             with tab3:
                 st.subheader("🎲 Monte Carlo (100 Skenario)")
                 mean_p = df_ts['Jumlah'].mean(); std_p = df_ts['Jumlah'].std()
