@@ -416,7 +416,7 @@ elif menu == "🔮 Advanced Stats & Predict":
         else:
             df_ts = df_pengeluaran.groupby('Tanggal')['Jumlah'].sum().reset_index().set_index('Tanggal').asfreq('D', fill_value=0)
             
-            tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA Model", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
+            tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA", "📈 Hybrid ARIMA-LSTM", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
             
             with tab1:
                 st.subheader("Proyeksi Tren (ARIMA)")
