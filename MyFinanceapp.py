@@ -419,25 +419,37 @@ elif menu == "🔮 Advanced Stats & Predict":
             tab1, tab2, tab3, tab4 = st.tabs(["📈 ARIMA", "📈 Hybrid ARIMA-LSTM", "🎲 Monte Carlo", "📊 Uji Asumsi (ADF)"])
             
             with tab1:
-                st.subheader("Proyeksi Tren (ARIMA)")
+                st.subheader("Proyeksi Tren (Auto-ARIMA)")
                 try:
-                    model = ARIMA(df_ts['Jumlah'], order=(1, 1, 1))
-                    model_fit = model.fit()
-                    prediksi_obj = model_fit.get_forecast(steps=7)
-                    forecast_mean = prediksi_obj.predicted_mean.apply(lambda x: max(0, x))
+                    from pmdarima import auto_arima
+                    model_auto = auto_arima(df_ts['Jumlah'], 
+                                            start_p=0, max_p=5, 
+                                            start_q=0, max_q=5, 
+                                            seasonal=False, 
+                                            stepwise=True, 
+                                            suppress_warnings=True)
+
+                    st.info(f"✨ Orde ARIMA optimal yang terpilih secara otomatis: **{model_auto.order}**")
+
+                    forecast_mean = model_auto.predict(n_periods=7)
+                    forecast_mean = np.maximum(forecast_mean, 0) 
+                    
                     tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=7)
                     
                     fig_fc = go.Figure()
                     fig_fc.add_trace(go.Scatter(x=df_ts.tail(20).index, y=df_ts.tail(20)['Jumlah'], name='Aktual', line=dict(color='#3498db', width=3)))
-                    fig_fc.add_trace(go.Scatter(x=tanggal_fc, y=forecast_mean, name='Prediksi', line=dict(color='#e74c3c', dash='dot', width=3)))
+                    fig_fc.add_trace(go.Scatter(x=tanggal_fc, y=forecast_mean, name='Prediksi Auto-ARIMA', line=dict(color='#e74c3c', dash='dot', width=3)))
                     st.plotly_chart(fig_fc, use_container_width=True, theme="streamlit")
-                except:
-                    st.error("Model ARIMA gagal berkonvergensi.")
+                    
+                except ImportError:
+                    st.error("⚠️ Library `pmdarima` belum terinstal. Tambahkan di requirements.txt!")
+                except Exception as e:
+                    st.error(f"Model ARIMA gagal diproses: {e}")
+                    
             with tab2:
                 st.subheader("🧠 Model Hybrid ARIMA-LSTM")
                 st.write("Menggabungkan kemampuan prediksi linear (ARIMA) dengan pengenalan pola non-linear (LSTM) pada residual data.")
-                
-                # KOREKSI: Tambahkan perlindungan jumlah data khusus untuk Deep Learning
+
                 if len(df_ts) < 30:
                     st.info("⚠️ Jaringan Saraf Tiruan (LSTM) membutuhkan minimal 30 hari data riwayat pengeluaran yang berkesinambungan agar bisa mendeteksi pola tanpa mengalami overfitting. Silakan kumpulkan data lebih banyak di dashboard utama.")
                 else:
@@ -489,7 +501,7 @@ elif menu == "🔮 Advanced Stats & Predict":
                                 lstm_pred = scaler.inverse_transform(np.array(lstm_pred_scaled).reshape(-1, 1)).flatten()
                                 
                                 hybrid_forecast = arima_forecast + lstm_pred
-                                hybrid_forecast = np.maximum(hybrid_forecast, 0) # Mencegah prediksi minus
+                                hybrid_forecast = np.maximum(hybrid_forecast, 0) 
                                 
                                 tanggal_fc = pd.date_range(start=df_ts.index[-1] + pd.Timedelta(days=1), periods=langkah_prediksi)
                                 fig_hybrid = go.Figure()
@@ -592,7 +604,7 @@ with st.popover("💬", use_container_width=False):
             
             profil_pribadi = st.secrets.get("USER_BIO", "Pengguna aplikasi ini")
             
-            instruksi_sistem = f"""Kamu adalah Dimas, asisten AI finansial dan teman ngobrol yang asik.
+            instruksi_sistem = f"""Kamu adalah Kyo, Robo finansial dan teman ngobrol yang asik.
             Profil Pengguna: {profil_pribadi}
             
             INFORMASI WAKTU SAAT INI (PENTING):
