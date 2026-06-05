@@ -161,27 +161,29 @@ st.sidebar.caption("© 2026 | Analytics Dashboard")
 if menu == "🏠 Dashboard":
     st.title("Ringkasan Hari Ini & Input Transaksi")
     
-    # ---------------------------------------------------------
+        # ---------------------------------------------------------
     # KOREKSI: SISTEM WAKTU DIKUNCI KE WIB (UTC + 7 JAM)
     # ---------------------------------------------------------
     waktu_wib = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
     waktu_sekarang = waktu_wib.normalize().tz_localize(None)
     kemarin = waktu_sekarang - pd.Timedelta(days=1)
     
-    # Berikan pengondisian jika data di Google Sheets sudah ada isinya
-if not df.empty:
-    df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
-    df_harian = df[df['Tanggal_Clean'] == waktu_sekarang]
-    df_kemarin = df[df['Tanggal_Clean'] == kemarin]
+    # Berikan pengondisian jika data di Google Sheets sudah ada isinya (SPASI SUDAH DIRAPIKAN)
+    if not df.empty:
+        df['Tanggal_Clean'] = pd.to_datetime(df['Tanggal']).dt.normalize()
+        df_harian = df[df['Tanggal_Clean'] == waktu_sekarang]
+        df_kemarin = df[df['Tanggal_Clean'] == kemarin]
 
-    in_hari_ini = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-    in_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pemasukan']['Jumlah'].sum()
-    out_hari_ini = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    out_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-    saldo_akhir = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
-else:
-    # Jika Google Sheets masih kosong (awal penggunaan), set semua angka ke 0
-    in_hari_ini = in_kemarin = out_hari_ini = out_kemarin = saldo_akhir = 0
+        in_hari_ini = df_harian[df_harian['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+        in_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pemasukan']['Jumlah'].sum()
+        out_hari_ini = df_harian[df_harian['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+        out_kemarin = df_kemarin[df_kemarin['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+        saldo_akhir = df[df['Tipe'] == 'Pemasukan']['Jumlah'].sum() - df[df['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
+    else:
+        # Jika Google Sheets masih kosong (awal penggunaan), set semua angka ke 0
+        in_hari_ini = in_kemarin = out_hari_ini = out_kemarin = saldo_akhir = 0
+        
+    # BAGIAN INI KELUAR DARI 'else:' DAN SEJAJAR DENGAN 'if not df.empty:'
     delta_in = int(in_hari_ini - in_kemarin)
     delta_out = int(out_hari_ini - out_kemarin)
     
@@ -191,7 +193,7 @@ else:
     col3.metric("💎 Saldo Akhir (Aktual)", f"Rp {saldo_akhir:,.0f}")
     
     st.markdown("---")
-    
+
     col_gauge, col_form = st.columns([1, 1.5])
     
     with col_gauge:
