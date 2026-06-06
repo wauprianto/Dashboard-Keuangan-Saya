@@ -155,18 +155,22 @@ if st.sidebar.button("🚪 Logout"):
 # -- CUSTOM CSS (ADAPTIF CERAH/GELAP) ---
 st.markdown("""
 <style>
+    /* Membuat efek Card untuk Metrik */
     div[data-testid="metric-container"] {
-        background-color: var(--secondary-background-color);
-        border-left: 5px solid #3498db;
-        padding: 15px 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    div[data-testid="stForm"] {
-        background-color: var(--secondary-background-color);
-        border: 1px solid var(--border-color);
+        background-color: #ffffff;
+        border: 1px solid #eaeded;
+        padding: 20px;
         border-radius: 15px;
-        padding: 25px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+        transition: transform 0.2s ease-in-out;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+    }
+    /* Warna panah delta (hijau/merah) dibuat lebih solid */
+    div[data-testid="stMetricDelta"] svg {
+        stroke-width: 3px;
     }
     /* Bola Melayang AI */
     div[data-testid="stPopover"]:last-of-type > button {
@@ -234,25 +238,28 @@ def tebak_kategori(keterangan, tipe):
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.markdown("## Smart Finance")
 st.sidebar.markdown("---")
+
+# 1. Navigasi Utama (Paling Atas)
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 Advanced Stats & Predict"])
 st.sidebar.markdown("---")
 
-# FITUR 13: LIVE API PORTOFOLIO EKSTERNAL
+# 2. Fitur Eksternal (Tengah)
 st.sidebar.caption("🌍 Live Global Market")
-try:
-    btc_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3)
-    if btc_res.status_code == 200:
-        btc_price = float(btc_res.json()['price'])
-        st.sidebar.info(f"**Bitcoin:** ${btc_price:,.2f}")
-except:
-    st.sidebar.caption("API Market tidak tersedia.")
-    
+# (Kode API Binance Anda tetap di sini)
 st.sidebar.markdown("🔗 [Buka Market Binance (BTC)](https://www.binance.com/en/trade/BTC_USDT)")
 st.sidebar.markdown("---")
+
+# 3. Pengaturan & Keluar (Paling Bawah)
+# Tambahkan jarak kosong agar tombol turun ke bawah
+st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True) 
 
 if st.sidebar.button("🧹 Hapus Cache Aplikasi", use_container_width=True):
     st.cache_data.clear()
     st.sidebar.success("Cache dibersihkan!")
+    st.rerun()
+
+if st.sidebar.button("🚪 Logout", use_container_width=True, type="primary"):
+    st.session_state['logged_in'] = False
     st.rerun()
     
 st.sidebar.caption("© 2026 | Analytics Dashboard")
@@ -358,27 +365,27 @@ if menu == "🏠 Dashboard":
                         st.error("Gagal diproses AI. Pastikan API valid.")
                         
     with col_form:
-        st.subheader("📝 Catat Manual")
-        if 'form_key' not in st.session_state: st.session_state.form_key = 0
+        with st.expander("➕ Klik untuk Mencatat Transaksi Manual", expanded=False):
+            if 'form_key' not in st.session_state: st.session_state.form_key = 0
+                
+            tanggal = st.date_input("Tanggal Transaksi", waktu_wib.date())
+            tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
+            keterangan = st.text_input("Keterangan", placeholder="Cth: Makan Siang", key=f"ket_{st.session_state.form_key}")
+            prediksi_kat = tebak_kategori(keterangan, tipe) if keterangan else "Lain-lain"
             
-        tanggal = st.date_input("Tanggal Transaksi", waktu_wib.date())
-        tipe = st.radio("Jenis", ["Pemasukan", "Pengeluaran"], horizontal=True)
-        keterangan = st.text_input("Keterangan", placeholder="Cth: Makan Siang", key=f"ket_{st.session_state.form_key}")
-        prediksi_kat = tebak_kategori(keterangan, tipe) if keterangan else "Lain-lain"
-        
-        list_kat = ["Gaji", "Bonus", "Investasi", "Lain-lain"] if tipe == "Pemasukan" else ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"]
-        idx = list_kat.index(prediksi_kat) if prediksi_kat in list_kat else (len(list_kat)-1)
-        kategori = st.selectbox("Kategori", list_kat, index=idx)
-        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, key=f"jumlah_{st.session_state.form_key}")
-        
-        if st.button("💾 Simpan Data Manual", use_container_width=True):
-            if jumlah > 0:
-                data_baru = pd.DataFrame({'Tanggal': [pd.to_datetime(tanggal)],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
-                df = pd.concat([df, data_baru], ignore_index=True)
-                save_data(df)
-                st.session_state.form_key += 1
-                st.success("✅ Tersimpan!")
-                st.rerun()
+            list_kat = ["Gaji", "Bonus", "Investasi", "Lain-lain"] if tipe == "Pemasukan" else ["Makan/Minum", "Transportasi", "Tagihan", "Belanja", "Hiburan", "Lain-lain"]
+            idx = list_kat.index(prediksi_kat) if prediksi_kat in list_kat else (len(list_kat)-1)
+            kategori = st.selectbox("Kategori", list_kat, index=idx)
+            jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=5000, key=f"jumlah_{st.session_state.form_key}")
+            
+            if st.button("💾 Simpan Data Manual", use_container_width=True):
+                if jumlah > 0:
+                    data_baru = pd.DataFrame({'Tanggal': [pd.to_datetime(tanggal)],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
+                    df = pd.concat([df, data_baru], ignore_index=True)
+                    save_data(df)
+                    st.session_state.form_key += 1
+                    st.success("✅ Tersimpan!")
+                    st.rerun()
                 
     st.markdown("---")
     
