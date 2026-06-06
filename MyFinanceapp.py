@@ -34,11 +34,99 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 if not st.session_state['logged_in']:
+    # Custom CSS Khusus Halaman Login (Glassmorphism & Modern UI)
+    st.markdown("""
+    <style>
+        /* Background halaman login */
+        .stApp {
+            background: radial-gradient(circle at top right, #eaf6f6, #f4f9f9, #e0f7fa);
+        }
+        
+        /* Container utama (Efek Kartu Timbul) */
+        [data-testid="column"]:nth-of-type(2) > div {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 50px;
+        }
+
+        /* Inner container (Efek Glowing Border untuk Input) */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: linear-gradient(135deg, rgba(240, 248, 255, 0.6), rgba(255, 255, 255, 0.8)) !important;
+            border: 2px solid #a8f0e1 !important; /* Warna border glowing */
+            border-radius: 15px !important;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.15) !important;
+            padding: 25px 20px !important;
+        }
+
+        /* Styling Judul dan Subjudul */
+        .login-title {
+            text-align: center;
+            color: #008c8c;
+            font-family: 'Arial', sans-serif;
+            font-weight: 700;
+            margin-bottom: 0px;
+            font-size: 28px;
+        }
+        .login-subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 15px;
+            margin-bottom: 25px;
+        }
+
+        /* Styling Tombol Masuk */
+        div[data-testid="stButton"] > button {
+            background: linear-gradient(90deg, #00796b 0%, #009688 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 20px !important;
+            padding: 10px !important;
+            font-weight: bold !important;
+            box-shadow: 0 4px 10px rgba(0, 150, 136, 0.3) !important;
+            transition: all 0.3s ease !important;
+            width: 100%;
+        }
+        div[data-testid="stButton"] > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 150, 136, 0.5) !important;
+        }
+        
+        /* Styling Input Field */
+        input[type="password"] {
+            border-radius: 8px !important;
+            background-color: #f8fbfb !important;
+        }
+
+        /* Tautan bawah (Lupa PIN & Daftar Baru) */
+        .login-links {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .login-links a {
+            color: #95a5a6;
+            text-decoration: underline;
+        }
+        .login-links a:hover {
+            color: #00796b;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.markdown("<br><br><h2 style='text-align: center; color: #00ffcc;'>🔒 Akses Dasbor Keuangan</h2>", unsafe_allow_html=True)
+        # Menampilkan Judul dan Subjudul
+        st.markdown("<h2 class='login-title'>🔒 Akses Dasbor Keuangan</h2>", unsafe_allow_html=True)
+        st.markdown("<p class='login-subtitle'>Selamat Datang Kembali!</p>", unsafe_allow_html=True)
+        
+        # Inner Container dengan glowing border
         with st.container(border=True):
             password_input = st.text_input("Masukkan PIN / Password:", type="password")
+            st.write("") # Spacer kecil
             if st.button("Masuk", use_container_width=True):
                 try:
                     kunci_rahasia = st.secrets["APP_PASSWORD"]
@@ -49,7 +137,16 @@ if not st.session_state['logged_in']:
                         st.error("❌ Password salah!")
                 except KeyError:
                     st.error("⚠️ Sistem terkunci: 'APP_PASSWORD' belum diatur di Streamlit Secrets!")
-    st.stop() 
+            
+            # Tautan Tambahan di dalam inner container
+            st.markdown("""
+            <div class='login-links'>
+                <a href='#'>Lupa PIN?</a>
+                <a href='#'>Daftar Baru</a>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    st.stop()
 
 if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
