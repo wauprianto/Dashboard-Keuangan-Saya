@@ -191,6 +191,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+    /* Mengubah background utama dengan gradien modern yang halus */
+    .stApp {
+        background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- INISIALISASI DATA (KONEKSI GOOGLE SHEETS API) ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
