@@ -15,7 +15,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
 import google.generativeai as genai
 import warnings
-from streamlit_gsheets import GSheetsConnection  # TAMBAHAN: Library Google Sheets
+from streamlit_gsheets import GSheetsConnection  
 
 # Coba load FPDF untuk cetak PDF
 try:
@@ -34,99 +34,41 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 if not st.session_state['logged_in']:
-    # Custom CSS Khusus Halaman Login (Glassmorphism & Modern UI)
     st.markdown("""
     <style>
-        /* Background halaman login */
-        .stApp {
-            background: radial-gradient(circle at top right, #eaf6f6, #f4f9f9, #e0f7fa);
-        }
-        
-        /* Container utama (Efek Kartu Timbul) */
+        .stApp { background: radial-gradient(circle at top right, #eaf6f6, #f4f9f9, #e0f7fa); }
         [data-testid="column"]:nth-of-type(2) > div {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            margin-top: 50px;
+            background: rgba(255, 255, 255, 0.9); border-radius: 20px; padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); margin-top: 50px;
         }
-
-        /* Inner container (Efek Glowing Border untuk Input) */
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background: linear-gradient(135deg, rgba(240, 248, 255, 0.6), rgba(255, 255, 255, 0.8)) !important;
-            border: 2px solid #a8f0e1 !important; /* Warna border glowing */
-            border-radius: 15px !important;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.15) !important;
-            padding: 25px 20px !important;
+            border: 2px solid #a8f0e1 !important; border-radius: 15px !important;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.15) !important; padding: 25px 20px !important;
         }
-
-        /* Styling Judul dan Subjudul */
-        .login-title {
-            text-align: center;
-            color: #008c8c;
-            font-family: 'Arial', sans-serif;
-            font-weight: 700;
-            margin-bottom: 0px;
-            font-size: 28px;
-        }
-        .login-subtitle {
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 15px;
-            margin-bottom: 25px;
-        }
-
-        /* Styling Tombol Masuk */
+        .login-title { text-align: center; color: #008c8c; font-family: 'Arial', sans-serif; font-weight: 700; margin-bottom: 0px; font-size: 28px; }
+        .login-subtitle { text-align: center; color: #7f8c8d; font-size: 15px; margin-bottom: 25px; }
         div[data-testid="stButton"] > button {
-            background: linear-gradient(90deg, #00796b 0%, #009688 100%) !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 20px !important;
-            padding: 10px !important;
-            font-weight: bold !important;
-            box-shadow: 0 4px 10px rgba(0, 150, 136, 0.3) !important;
-            transition: all 0.3s ease !important;
-            width: 100%;
+            background: linear-gradient(90deg, #00796b 0%, #009688 100%) !important; color: white !important;
+            border: none !important; border-radius: 20px !important; padding: 10px !important; font-weight: bold !important;
+            box-shadow: 0 4px 10px rgba(0, 150, 136, 0.3) !important; transition: all 0.3s ease !important; width: 100%;
         }
-        div[data-testid="stButton"] > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 150, 136, 0.5) !important;
-        }
-        
-        /* Styling Input Field */
-        input[type="password"] {
-            border-radius: 8px !important;
-            background-color: #f8fbfb !important;
-        }
-
-        /* Tautan bawah (Lupa PIN & Daftar Baru) */
-        .login-links {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 15px;
-            font-size: 14px;
-        }
-        .login-links a {
-            color: #95a5a6;
-            text-decoration: underline;
-        }
-        .login-links a:hover {
-            color: #00796b;
-        }
+        div[data-testid="stButton"] > button:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 150, 136, 0.5) !important; }
+        input[type="password"] { border-radius: 8px !important; background-color: #f8fbfb !important; }
+        .login-links { display: flex; justify-content: space-between; margin-top: 15px; font-size: 14px; }
+        .login-links a { color: #95a5a6; text-decoration: underline; }
+        .login-links a:hover { color: #00796b; }
     </style>
     """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        # Menampilkan Judul dan Subjudul
         st.markdown("<h2 class='login-title'>🔒 Akses Dasbor Keuangan</h2>", unsafe_allow_html=True)
         st.markdown("<p class='login-subtitle'>Selamat Datang Kembali!</p>", unsafe_allow_html=True)
         
-        # Inner Container dengan glowing border
         with st.container(border=True):
             password_input = st.text_input("Masukkan PIN / Password:", type="password")
-            st.write("") # Spacer kecil
+            st.write("") 
             if st.button("Masuk", use_container_width=True):
                 try:
                     kunci_rahasia = st.secrets["APP_PASSWORD"]
@@ -138,96 +80,58 @@ if not st.session_state['logged_in']:
                 except KeyError:
                     st.error("⚠️ Sistem terkunci: 'APP_PASSWORD' belum diatur di Streamlit Secrets!")
             
-            # Tautan Tambahan di dalam inner container
             st.markdown("""
             <div class='login-links'>
                 <a href='#'>Lupa PIN?</a>
                 <a href='#'>Daftar Baru</a>
             </div>
             """, unsafe_allow_html=True)
-            
     st.stop()
 
 if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in'] = False
     st.rerun()
 
-# -- CUSTOM CSS (ADAPTIF CERAH/GELAP) ---
+# -- CUSTOM CSS ---
 st.markdown("""
 <style>
-    /* Membuat efek Card untuk Metrik */
     div[data-testid="metric-container"] {
-        background-color: #ffffff;
-        border: 1px solid #eaeded;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
-        transition: transform 0.2s ease-in-out;
+        background-color: #ffffff; border: 1px solid #eaeded; padding: 20px; border-radius: 15px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04); transition: transform 0.2s ease-in-out;
     }
-    div[data-testid="metric-container"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
-    }
-    /* Warna panah delta (hijau/merah) dibuat lebih solid */
-    div[data-testid="stMetricDelta"] svg {
-        stroke-width: 3px;
-    }
-    /* Bola Melayang AI */
+    div[data-testid="metric-container"]:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); }
+    div[data-testid="stMetricDelta"] svg { stroke-width: 3px; }
     div[data-testid="stPopover"]:last-of-type > button {
-        position: fixed !important;
-        top: 70px !important;
-        right: 25px !important;
-        width: 65px !important;
-        height: 65px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(135deg, #a29bfe, #74b9ff) !important;
-        color: white !important;
-        font-size: 30px !important;
-        z-index: 99999 !important;
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3) !important;
-        padding: 0 !important;
-        border: none !important;
+        position: fixed !important; top: 70px !important; right: 25px !important; width: 65px !important; height: 65px !important;
+        border-radius: 50% !important; background: linear-gradient(135deg, #a29bfe, #74b9ff) !important; color: white !important;
+        font-size: 30px !important; z-index: 99999 !important; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3) !important;
+        padding: 0 !important; border: none !important;
     }
+    .stApp { background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-    /* Mengubah background utama dengan gradien modern yang halus */
-    .stApp {
-        background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- INISIALISASI DATA (KONEKSI GOOGLE SHEETS API) ---
+# --- INISIALISASI DATA ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
-        # Membaca data langsung dari lembar kerja Sheet1
         df = conn.read(worksheet="Sheet1")
-        
-        # Antisipasi jika database kosong atau kolom belum terbentuk
         if df.empty or 'Tanggal' not in df.columns:
             return pd.DataFrame(columns=['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan'])
-            
-        df['Tanggal'] = pd.to_datetime(df['Tanggal'])
+        # PERBAIKAN: Mengatur dayfirst=True agar tgl ala Indonesia dibaca dengan benar
+        df['Tanggal'] = pd.to_datetime(df['Tanggal'], dayfirst=True)
         return df
     except Exception as e:
-        # Kembalikan dataframe kosong terstruktur jika pembacaan gagal/awal sistem
         return pd.DataFrame(columns=['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Keterangan'])
 
 def save_data(df_baru):
     try:
-        # Memperbarui data secara menyeluruh ke Google Sheets
         conn.update(worksheet="Sheet1", data=df_baru)
-        # Hapus cache internal Streamlit agar inputan langsung ter-render di halaman utama
         st.cache_data.clear()
     except Exception as e:
         st.error(f"❌ Gagal sinkronisasi ke Google Sheets: {e}")
 
-# Memuat data aktif
 df = load_data()
 
 def tebak_kategori(keterangan, tipe):
@@ -247,19 +151,11 @@ def tebak_kategori(keterangan, tipe):
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.markdown("## Smart Finance")
 st.sidebar.markdown("---")
-
-# 1. Navigasi Utama (Paling Atas)
 menu = st.sidebar.radio("Navigasi Dashboard:", ["🏠 Dashboard", "📈 Analyze", "🔮 Advanced Stats & Predict"])
 st.sidebar.markdown("---")
-
-# 2. Fitur Eksternal (Tengah)
 st.sidebar.caption("🌍 Live Global Market")
-# (Kode API Binance Anda tetap di sini)
 st.sidebar.markdown("🔗 [Buka Market Binance (BTC)](https://www.binance.com/en/trade/BTC_USDT)")
 st.sidebar.markdown("---")
-
-# 3. Pengaturan & Keluar (Paling Bawah)
-# Tambahkan jarak kosong agar tombol turun ke bawah
 st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True) 
 
 if st.sidebar.button("🧹 Hapus Cache Aplikasi", use_container_width=True):
@@ -346,7 +242,8 @@ if menu == "🏠 Dashboard":
                     respon_vision = model_vision.generate_content([prompt_vision, img_struk])
                     hasil_vision = json.loads(respon_vision.text.replace('```json\n', '').replace('```', '').strip())
                     
-                    df = pd.concat([df, pd.DataFrame([{'Tanggal': pd.to_datetime(waktu_sekarang), 'Tipe': 'Pengeluaran', 'Kategori': hasil_vision['Kategori'], 'Jumlah': hasil_vision['Jumlah'], 'Keterangan': 'Input dari Scan Struk'}])], ignore_index=True)
+                    # PERBAIKAN: Format strftime untuk mengunci string format
+                    df = pd.concat([df, pd.DataFrame([{'Tanggal': waktu_sekarang.strftime('%Y-%m-%d'), 'Tipe': 'Pengeluaran', 'Kategori': hasil_vision['Kategori'], 'Jumlah': hasil_vision['Jumlah'], 'Keterangan': 'Input dari Scan Struk'}])], ignore_index=True)
                     save_data(df)
                     st.success(f"✅ Sukses discan! Kategori: {hasil_vision['Kategori']} | Rp {hasil_vision['Jumlah']:,.0f}")
                     st.rerun()
@@ -366,7 +263,8 @@ if menu == "🏠 Dashboard":
                         respon = model.generate_content(prompt)
                         hasil = json.loads(respon.text.replace('```json\n', '').replace('```', '').strip())
                         
-                        df = pd.concat([df, pd.DataFrame([{'Tanggal': pd.to_datetime(waktu_sekarang), 'Tipe': hasil['Tipe'], 'Kategori': hasil['Kategori'], 'Jumlah': hasil['Jumlah'], 'Keterangan': hasil['Keterangan']}])], ignore_index=True)
+                        # PERBAIKAN: Format strftime
+                        df = pd.concat([df, pd.DataFrame([{'Tanggal': waktu_sekarang.strftime('%Y-%m-%d'), 'Tipe': hasil['Tipe'], 'Kategori': hasil['Kategori'], 'Jumlah': hasil['Jumlah'], 'Keterangan': hasil['Keterangan']}])], ignore_index=True)
                         save_data(df)
                         st.success(f"Dicatat: {hasil['Kategori']} - Rp {hasil['Jumlah']}")
                         st.rerun()
@@ -389,7 +287,8 @@ if menu == "🏠 Dashboard":
             
             if st.button("💾 Simpan Data Manual", use_container_width=True):
                 if jumlah > 0:
-                    data_baru = pd.DataFrame({'Tanggal': [pd.to_datetime(tanggal)],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
+                    # PERBAIKAN: Format strftime 
+                    data_baru = pd.DataFrame({'Tanggal': [tanggal.strftime('%Y-%m-%d')],'Tipe': [tipe],'Kategori': [kategori],'Jumlah': [jumlah],'Keterangan': [keterangan]})
                     df = pd.concat([df, data_baru], ignore_index=True)
                     save_data(df)
                     st.session_state.form_key += 1
@@ -425,14 +324,12 @@ elif menu == "📈 Analyze":
     if df.empty:
         st.warning("Belum ada data.")
     else:
-        # PERBAIKAN FILTER: Memastikan data dibaca sebagai string murni untuk mencegah bug Pandas
         df['Bulan_Tahun_Str'] = df['Tanggal'].dt.to_period('M').astype(str)
         list_bulan_str = [str(b) for b in sorted(df['Tanggal'].dt.to_period('M').unique(), reverse=True)]
         
         waktu_wib = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
         bulan_ini_str = str(waktu_wib.to_period('M'))
         
-        # Cegah selectbox milih bulan masa depan kalau ada typo tanggal
         idx_default = 0
         if bulan_ini_str in list_bulan_str:
             idx_default = list_bulan_str.index(bulan_ini_str)
@@ -441,7 +338,6 @@ elif menu == "📈 Analyze":
         with col_opt1:
             bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str, index=idx_default)
             
-        # Menggunakan kolom String agar pasti cocok dengan dropdown
         df_bulanan = df[df['Bulan_Tahun_Str'] == bulan_pilihan]
         
         in_bln = df_bulanan[df_bulanan['Tipe'] == 'Pemasukan']['Jumlah'].sum()
@@ -530,7 +426,6 @@ elif menu == "📈 Analyze":
         else:
             st.info("🤖 Butuh minimal 5 hari transaksi PENGELUARAN di bulan ini untuk mengaktifkan AI Clustering.")
 
-
 # ==========================================
 # MENU 3: ADVANCED PREDICT & STATS
 # ==========================================
@@ -609,7 +504,6 @@ elif menu == "🔮 Advanced Stats & Predict":
                                 look_back = 3
                                 X, Y = create_dataset(resid_scaled, look_back)
                                 
-                                # Reshape format LSTM: [samples, time steps, features]
                                 X = np.reshape(X, (X.shape[0], 1, X.shape[1]))
                                 
                                 lstm_model = Sequential()
