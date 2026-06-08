@@ -464,52 +464,57 @@ elif menu == "📈 Analyze":
 
         st.markdown("---")
         
-        st.subheader("Sankey Diagram")
-        df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
-        label_node = ["Pemasukan Bulanan"] + df_keluar['Kategori'].tolist() + ["Sisa Saldo"]
-        sumber = [0] * (len(df_keluar) + 1)
-        tujuan = list(range(1, len(label_node)))
-        nilai = df_keluar['Jumlah'].tolist() + [max(0, sisa_saldo)]
-        
-        if sisa_saldo < 0: label_node.pop(); sumber.pop(); tujuan.pop(); nilai.pop()
-
-        if in_bln > 0 or out_bln > 0:
-            fig_sankey = go.Figure(data=[go.Sankey(
-                node = dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=label_node, color=["#3498db"] + ["#e74c3c"] * len(df_keluar) + ["#2ecc71"]),
-                link = dict(source=sumber, target=tujuan, value=nilai, color="rgba(189, 195, 199, 0.4)")
-            )])
-            st.plotly_chart(fig_sankey, use_container_width=True, theme="streamlit")
-            
-        st.markdown("---")
+        # --- REVISI: Data 1 Bulan Penuh Disiapkan di Sini ---
+        from itertools import product
+        periode = pd.Period(bulan_pilihan)
+        full_dates = pd.date_range(start=periode.start_time, end=periode.end_time)
+        df_full_dates = pd.DataFrame({'Tanggal': full_dates})
 
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.subheader("Cash Flow")
-            df_tren = df_bulanan.groupby(['Tanggal', 'Tipe'])['Jumlah'].sum().reset_index()
-            fig_bar = px.bar(df_tren, x='Tanggal', y='Jumlah', color='Tipe', color_discrete_map={"Pemasukan": "#3498db", "Pengeluaran": "#e74c3c"})
+            df_tren = df_bulanan.groupby([df_bulanan['Tanggal'].dt.date, 'Tipe'])['Jumlah'].sum().reset_index()
+            df_tren['Tanggal'] = pd.to_datetime(df_tren['Tanggal'])
+            
+            # Merge agar data mencakup 1 bulan penuh walau ada hari yg kosong (0)
+            all_combos = pd.DataFrame(list(product(full_dates, ['Pemasukan', 'Pengeluaran'])), columns=['Tanggal', 'Tipe'])
+            df_tren_full = pd.merge(all_combos, df_tren, on=['Tanggal', 'Tipe'], how='left').fillna(0)
+            
+            fig_bar = px.bar(df_tren_full, x='Tanggal', y='Jumlah', color='Tipe', color_discrete_map={"Pemasukan": "#3498db", "Pengeluaran": "#e74c3c"})
             st.plotly_chart(fig_bar, use_container_width=True, theme="streamlit")
             
         with col_c2:
             st.subheader("Distribusi Pengeluaran")
+            df_keluar = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran'].groupby('Kategori')['Jumlah'].sum().reset_index()
             if not df_keluar.empty:
                 fig_pie = px.pie(df_keluar, values='Jumlah', names='Kategori', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
                 st.plotly_chart(fig_pie, use_container_width=True, theme="streamlit")
+            else:
+                st.info("Belum ada data pengeluaran untuk bulan ini.")
 
         st.markdown("---")
         
         st.subheader("🤖 Segmentasi Gaya Hidup (K-Means)")
         df_peng_hari = df_bulanan[df_bulanan['Tipe']=='Pengeluaran'].groupby(df_bulanan['Tanggal'].dt.date)['Jumlah'].sum().reset_index()
-        if len(df_peng_hari) >= 5: 
-            X = df_peng_hari[['Jumlah']].values
+        df_peng_hari['Tanggal'] = pd.to_datetime(df_peng_hari['Tanggal'])
+        
+        # Digabungkan dengan dataframe 1 bulan penuh agar K-means mengolah seluruh hari di bulan tersebut
+        df_peng_hari_full = pd.merge(df_full_dates, df_peng_hari, on='Tanggal', how='left').fillna({'Jumlah': 0})
+        
+        if len(df_peng_hari_full) >= 5: 
+            X = df_peng_hari_full[['Jumlah']].values
             kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-            df_peng_hari['Cluster'] = kmeans.fit_predict(X)
+            df_peng_hari_full['Cluster'] = kmeans.fit_predict(X)
             
             pusat = kmeans.cluster_centers_.flatten()
             urutan = np.argsort(pusat)
             label_map = {urutan[0]: "Hemat", urutan[1]: "Normal", urutan[2]: "Boros"}
-            df_peng_hari['Gaya Hidup'] = df_peng_hari['Cluster'].map(label_map)
+            df_peng_hari_full['Gaya Hidup'] = df_peng_hari_full['Cluster'].map(label_map)
             
-            fig_cluster = px.scatter(df_peng_hari, x='Tanggal', y='Jumlah', color='Gaya Hidup', size='Jumlah', color_discrete_map={"Hemat":"#2ecc71", "Normal":"#3498db", "Boros":"#e74c3c"})
+            # Agar scatter plot tetap memunculkan titik hari dengan nilai 0 (tanpa transaksi), kita buat kolom size terpisah
+            df_peng_hari_full['Ukuran_Titik'] = df_peng_hari_full['Jumlah'] + (df_peng_hari_full['Jumlah'].max() * 0.05 + 1)
+            
+            fig_cluster = px.scatter(df_peng_hari_full, x='Tanggal', y='Jumlah', color='Gaya Hidup', size='Ukuran_Titik', color_discrete_map={"Hemat":"#2ecc71", "Normal":"#3498db", "Boros":"#e74c3c"})
             st.plotly_chart(fig_cluster, use_container_width=True, theme="streamlit")
         else:
             st.info("Butuh minimal 5 hari transaksi untuk mengaktifkan AI Clustering.")
