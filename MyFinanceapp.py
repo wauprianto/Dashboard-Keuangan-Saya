@@ -425,13 +425,24 @@ elif menu == "📈 Analyze":
     if df.empty:
         st.warning("Belum ada data.")
     else:
-        df['Bulan_Tahun'] = df['Tanggal'].dt.to_period('M')
-        list_bulan_str = [str(b) for b in sorted(df['Bulan_Tahun'].unique(), reverse=True)]
+        # PERBAIKAN FILTER: Memastikan data dibaca sebagai string murni untuk mencegah bug Pandas
+        df['Bulan_Tahun_Str'] = df['Tanggal'].dt.to_period('M').astype(str)
+        list_bulan_str = [str(b) for b in sorted(df['Tanggal'].dt.to_period('M').unique(), reverse=True)]
         
+        waktu_wib = pd.Timestamp.utcnow() + pd.Timedelta(hours=7)
+        bulan_ini_str = str(waktu_wib.to_period('M'))
+        
+        # Cegah selectbox milih bulan masa depan kalau ada typo tanggal
+        idx_default = 0
+        if bulan_ini_str in list_bulan_str:
+            idx_default = list_bulan_str.index(bulan_ini_str)
+            
         col_opt1, col_opt2, col_opt3 = st.columns([1, 1.5, 1.5])
         with col_opt1:
-            bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str)
-        df_bulanan = df[df['Bulan_Tahun'] == bulan_pilihan]
+            bulan_pilihan = st.selectbox("Pilih Periode", list_bulan_str, index=idx_default)
+            
+        # Menggunakan kolom String agar pasti cocok dengan dropdown
+        df_bulanan = df[df['Bulan_Tahun_Str'] == bulan_pilihan]
         
         in_bln = df_bulanan[df_bulanan['Tipe'] == 'Pemasukan']['Jumlah'].sum()
         out_bln = df_bulanan[df_bulanan['Tipe'] == 'Pengeluaran']['Jumlah'].sum()
@@ -464,10 +475,11 @@ elif menu == "📈 Analyze":
 
         st.markdown("---")
         
-        # --- REVISI: Data 1 Bulan Penuh Disiapkan di Sini ---
         from itertools import product
         periode = pd.Period(bulan_pilihan)
-        full_dates = pd.date_range(start=periode.start_time, end=periode.end_time)
+        start_date = periode.start_time.date()
+        end_date = periode.end_time.date()
+        full_dates = pd.date_range(start=start_date, end=end_date)
         df_full_dates = pd.DataFrame({'Tanggal': full_dates})
 
         col_c1, col_c2 = st.columns(2)
@@ -476,11 +488,11 @@ elif menu == "📈 Analyze":
             df_tren = df_bulanan.groupby([df_bulanan['Tanggal'].dt.date, 'Tipe'])['Jumlah'].sum().reset_index()
             df_tren['Tanggal'] = pd.to_datetime(df_tren['Tanggal'])
             
-            # Merge agar data mencakup 1 bulan penuh walau ada hari yg kosong (0)
             all_combos = pd.DataFrame(list(product(full_dates, ['Pemasukan', 'Pengeluaran'])), columns=['Tanggal', 'Tipe'])
-            df_tren_full = pd.merge(all_combos, df_tren, on=['Tanggal', 'Tipe'], how='left').fillna(0)
+            df_tren_full = pd.merge(all_combos, df_tren, on=['Tanggal', 'Tipe'], how='left').fillna({'Jumlah': 0})
             
-            fig_bar = px.bar(df_tren_full, x='Tanggal', y='Jumlah', color='Tipe', color_discrete_map={"Pemasukan": "#3498db", "Pengeluaran": "#e74c3c"})
+            fig_bar = px.bar(df_tren_full, x='Tanggal', y='Jumlah', color='Tipe', barmode='group', color_discrete_map={"Pemasukan": "#3498db", "Pengeluaran": "#e74c3c"})
+            fig_bar.update_xaxes(range=[start_date, end_date])
             st.plotly_chart(fig_bar, use_container_width=True, theme="streamlit")
             
         with col_c2:
@@ -490,18 +502,17 @@ elif menu == "📈 Analyze":
                 fig_pie = px.pie(df_keluar, values='Jumlah', names='Kategori', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
                 st.plotly_chart(fig_pie, use_container_width=True, theme="streamlit")
             else:
-                st.info("Belum ada data pengeluaran untuk bulan ini.")
+                st.info("Belum ada data PENGELUARAN di bulan ini. (Pie Chart hanya menampilkan kategori Pengeluaran)")
 
         st.markdown("---")
         
         st.subheader("🤖 Segmentasi Gaya Hidup (K-Means)")
         df_peng_hari = df_bulanan[df_bulanan['Tipe']=='Pengeluaran'].groupby(df_bulanan['Tanggal'].dt.date)['Jumlah'].sum().reset_index()
-        df_peng_hari['Tanggal'] = pd.to_datetime(df_peng_hari['Tanggal'])
         
-        # Digabungkan dengan dataframe 1 bulan penuh agar K-means mengolah seluruh hari di bulan tersebut
-        df_peng_hari_full = pd.merge(df_full_dates, df_peng_hari, on='Tanggal', how='left').fillna({'Jumlah': 0})
-        
-        if len(df_peng_hari_full) >= 5: 
+        if len(df_peng_hari) >= 5: 
+            df_peng_hari['Tanggal'] = pd.to_datetime(df_peng_hari['Tanggal'])
+            df_peng_hari_full = pd.merge(df_full_dates, df_peng_hari, on='Tanggal', how='left').fillna({'Jumlah': 0})
+            
             X = df_peng_hari_full[['Jumlah']].values
             kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
             df_peng_hari_full['Cluster'] = kmeans.fit_predict(X)
@@ -511,13 +522,14 @@ elif menu == "📈 Analyze":
             label_map = {urutan[0]: "Hemat", urutan[1]: "Normal", urutan[2]: "Boros"}
             df_peng_hari_full['Gaya Hidup'] = df_peng_hari_full['Cluster'].map(label_map)
             
-            # Agar scatter plot tetap memunculkan titik hari dengan nilai 0 (tanpa transaksi), kita buat kolom size terpisah
             df_peng_hari_full['Ukuran_Titik'] = df_peng_hari_full['Jumlah'] + (df_peng_hari_full['Jumlah'].max() * 0.05 + 1)
             
             fig_cluster = px.scatter(df_peng_hari_full, x='Tanggal', y='Jumlah', color='Gaya Hidup', size='Ukuran_Titik', color_discrete_map={"Hemat":"#2ecc71", "Normal":"#3498db", "Boros":"#e74c3c"})
+            fig_cluster.update_xaxes(range=[start_date, end_date])
             st.plotly_chart(fig_cluster, use_container_width=True, theme="streamlit")
         else:
-            st.info("Butuh minimal 5 hari transaksi untuk mengaktifkan AI Clustering.")
+            st.info("🤖 Butuh minimal 5 hari transaksi PENGELUARAN di bulan ini untuk mengaktifkan AI Clustering.")
+
 
 # ==========================================
 # MENU 3: ADVANCED PREDICT & STATS
